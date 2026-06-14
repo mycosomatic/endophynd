@@ -1,37 +1,198 @@
-# rRNA seed set provenance
-#
-# This file tracks the origin and content of resources/rrna_seeds.fa.
-# Update it whenever the seed file is rebuilt.
-
-status: TESTING_PLACEHOLDER
-built: "2026-06-14T00:00:00Z (placeholder; not a real build date)"
-built_by: "Phase 0 scaffold (hand-written placeholder)"
-n_sequences: 4
-loci_covered:
-  - ITS1
-  - ITS2
-  - SSU
-
-warning: >
-  This is a SYNTHETIC TESTING PLACEHOLDER. The sequences are not real
-  GenBank accessions — they were written to match the Phase 0 test fixtures
-  so the Snakemake smoke test can run without internet access.
-  Replace this file with real NCBI/SILVA sequences before running Phase 1
-  on real Logan or SRA data. See instructions below.
-
-how_to_replace: |
-  Run on a machine with internet access:
-
-    conda activate endophynd
-    python scripts/build_rrna_seeds.py --email your@email.com
-
-  This downloads ~100 phylogenetically diverse fungal SSU/5.8S/LSU
-  sequences from NCBI and overwrites this file and rrna_seeds.fa.
-  Commit both rrna_seeds.fa and rrna_seeds_provenance.yml to git.
-
-  Verify any existing seed file:
-    python scripts/build_rrna_seeds.py --verify
-
-decision_log_ref: >
-  See docs/decisions.md — the seed set build will be logged as D17
-  once executed with real sequences.
+built: '2026-06-14T22:18:47.832472Z'
+email: harte.singer@gmail.com
+n_per_group: 8
+groups:
+  Ascomycota_Hypocreales:
+    description: 'Ascomycota: Sordariomycetes, Hypocreales (Fusarium)'
+    query: (Fusarium[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title]))
+      AND 800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - XR_014475154.1
+    - XR_014475152.1
+    - XR_014475150.1
+    - XR_014475148.1
+    - XR_014475146.1
+    - XM_083250448.1
+    - XM_083234482.1
+    - XM_031180152.3
+  Ascomycota_Eurotiales:
+    description: 'Ascomycota: Eurotiomycetes, Eurotiales (Aspergillus)'
+    query: (Aspergillus[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title]))
+      AND 800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - LC877118.1
+    - LC933247.1
+    - XM_745437.2
+    - XM_749912.2
+    - XM_073769922.1
+    - XM_073777252.1
+    - XM_073757263.1
+    - XM_073713115.1
+  Ascomycota_Pleosporales:
+    description: "Ascomycota: Dothideomycetes, Pleosporales (Alternaria) \u2014 in\
+      \ mock community"
+    query: (Alternaria[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title]))
+      AND 800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - LC877073.1
+    - NG_244187.1
+    - LC769425.1
+    - XM_049364021.1
+    - XM_049362954.1
+    - XM_051499932.1
+    - XM_051431410.1
+    - XM_051430246.1
+  Ascomycota_Saccharomycetales:
+    description: 'Ascomycota: Saccharomycetes (Saccharomyces)'
+    query: (Saccharomyces[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title]))
+      AND 800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - pdb|9PN5|B5
+    - pdb|9DP7|B5
+    - pdb|9DOV|B5
+    - pdb|9N79|L1
+    - pdb|9N78|L1
+    - pdb|9N72|L1
+    - LC924622.1
+    - LC924621.1
+  Ascomycota_Pezizales:
+    description: 'Ascomycota: Pezizomycetes, Pezizales (Tuber)'
+    query: (Tuber[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title])) AND
+      800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - DQ974808.1
+    - DQ974807.1
+    - KT215193.1
+    - LC419994.1
+    - LC419993.1
+    - LC415733.1
+    - KU203778.1
+    - KU203777.1
+  Basidiomycota_Agaricales:
+    description: 'Basidiomycota: Agaricomycetes, Agaricales (Agaricus)'
+    query: (Agaricus[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title]))
+      AND 800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - MH751906.1
+    - MH511804.2
+    - FJ172289.1
+    - KT186164.1
+    - FJ641895.1
+    - KR349650.1
+    - KR155080.1
+    - KR155068.1
+  Basidiomycota_Polyporales:
+    description: 'Basidiomycota: Agaricomycetes, Polyporales (Trametes)'
+    query: (Trametes[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title]))
+      AND 800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - KC581354.1
+    - AF516556.1
+    - XM_008038386.1
+    - MG847266.1
+    - MG847265.1
+    - MG847264.1
+    - MK192488.1
+    - MK192487.1
+  Basidiomycota_Russulales:
+    description: 'Basidiomycota: Agaricomycetes, Russulales (Russula)'
+    query: (Russula[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title])) AND
+      800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - PZ385174.1
+    - EU019948.1
+    - EU019940.1
+    - EU019939.1
+    - EU019938.1
+    - EU019936.1
+    - EU019935.1
+    - EU019934.1
+  Basidiomycota_Ustilaginales:
+    description: 'Basidiomycota: Ustilaginomycetes (Ustilago)'
+    query: (Ustilago[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title]))
+      AND 800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - LC603337.1
+    - LC603336.1
+    - NG_065062.1
+    - NG_063039.1
+    - KP322978.1
+    - KP322956.1
+    - KP866247.1
+    - KF922222.1
+  Mucoromycota_Mucorales:
+    description: 'Mucoromycota: Mucoromycetes, Mucorales (Rhizopus)'
+    query: (Rhizopus[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title]))
+      AND 800:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - LC885653.1
+    - LC885652.1
+    - LC885651.1
+    - XR_010932192.1
+    - XR_010932190.1
+    - AB250163.1
+    - AB113021.1
+    - AB113020.1
+  Chytridiomycota:
+    description: Chytridiomycota (Chytriomyces)
+    query: (Chytriomyces[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title]))
+      AND 800:3000[SLEN]
+    n_fetched: 3
+    accessions:
+    - JN940940.1
+    - AB586078.1
+    - M59758.1
+  5.8S_Ascomycota:
+    description: "5.8S rRNA \u2014 Aspergillus (baits ITS flanks for all Ascomycota)"
+    query: (Aspergillus[Organism] AND 5.8S ribosomal RNA[Title]) AND 100:300[SLEN]
+    n_fetched: 0
+    accessions: []
+  5.8S_Basidiomycota:
+    description: "5.8S rRNA \u2014 Agaricus (baits ITS flanks for Basidiomycota)"
+    query: (Agaricus[Organism] AND 5.8S ribosomal RNA[Title]) AND 100:300[SLEN]
+    n_fetched: 0
+    accessions: []
+  LSU_Ascomycota:
+    description: "LSU/28S \u2014 Ascomycota (Fusarium)"
+    query: (Fusarium[Organism] AND (28S ribosomal RNA[Title] OR large subunit ribosomal
+      RNA[Title])) AND 200:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - PZ501693.1
+    - PZ501672.1
+    - PZ393897.1
+    - PZ501431.1
+    - PZ501430.1
+    - PZ501429.1
+    - PZ501425.1
+    - PZ501424.1
+  LSU_Basidiomycota:
+    description: "LSU/28S \u2014 Basidiomycota (Agaricus)"
+    query: (Agaricus[Organism] AND (28S ribosomal RNA[Title] OR large subunit ribosomal
+      RNA[Title])) AND 200:3000[SLEN]
+    n_fetched: 8
+    accessions:
+    - PZ495514.1
+    - PZ495513.1
+    - PZ495512.1
+    - PZ495511.1
+    - PZ495510.1
+    - PZ495509.1
+    - PZ495508.1
+    - PZ495507.1
+ncbi_entrez_base: https://eutils.ncbi.nlm.nih.gov/entrez/eutils
+note: Seed sequences fetched from NCBI for bbduk k-mer baiting. Covers SSU/18S, 5.8S,
+  and LSU/28S across major fungal lineages. Replace this file with a larger phylogenetically
+  balanced set (e.g. from SILVA) for production runs.
+n_sequences_written: 99
+output: /home/harte/endophynd/endophynd/resources/rrna_seeds.fa
