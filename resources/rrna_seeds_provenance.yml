@@ -1,0 +1,37 @@
+# rRNA seed set provenance
+#
+# This file tracks the origin and content of resources/rrna_seeds.fa.
+# Update it whenever the seed file is rebuilt.
+
+status: TESTING_PLACEHOLDER
+built: "2026-06-14T00:00:00Z (placeholder; not a real build date)"
+built_by: "Phase 0 scaffold (hand-written placeholder)"
+n_sequences: 4
+loci_covered:
+  - ITS1
+  - ITS2
+  - SSU
+
+warning: >
+  This is a SYNTHETIC TESTING PLACEHOLDER. The sequences are not real
+  GenBank accessions — they were written to match the Phase 0 test fixtures
+  so the Snakemake smoke test can run without internet access.
+  Replace this file with real NCBI/SILVA sequences before running Phase 1
+  on real Logan or SRA data. See instructions below.
+
+how_to_replace: |
+  Run on a machine with internet access:
+
+    conda activate endophynd
+    python scripts/build_rrna_seeds.py --email your@email.com
+
+  This downloads ~100 phylogenetically diverse fungal SSU/5.8S/LSU
+  sequences from NCBI and overwrites this file and rrna_seeds.fa.
+  Commit both rrna_seeds.fa and rrna_seeds_provenance.yml to git.
+
+  Verify any existing seed file:
+    python scripts/build_rrna_seeds.py --verify
+
+decision_log_ref: >
+  See docs/decisions.md — the seed set build will be logged as D17
+  once executed with real sequences.

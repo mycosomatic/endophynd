@@ -52,6 +52,39 @@ RESULTS = COLD / "results" / RUN_ID
 
 
 # ---------------------------------------------------------------------------
+# Seed-file guard
+# Warn if the placeholder seed set is in use; hard-fail if the file is
+# missing entirely.  This check runs at DAG-build time so the user sees
+# the warning before any rule executes.
+# ---------------------------------------------------------------------------
+
+_SEED_REF = Path(config["bait"]["seed_ref"])
+
+if not _SEED_REF.exists():
+    raise WorkflowError(
+        f"\n\n[SEED FILE MISSING] {_SEED_REF} does not exist.\n"
+        "Build it first:\n"
+        "  python scripts/build_rrna_seeds.py --email your@email.com\n"
+        "Or verify an existing file:\n"
+        "  python scripts/build_rrna_seeds.py --verify\n"
+    )
+
+_SEED_IS_PLACEHOLDER = False
+with open(_SEED_REF) as _sf:
+    _first_line = _sf.readline()
+    if "TESTING_PLACEHOLDER" in _first_line:
+        _SEED_IS_PLACEHOLDER = True
+
+if _SEED_IS_PLACEHOLDER:
+    sys.stderr.write(
+        "\n[WARNING] resources/rrna_seeds.fa is the TESTING PLACEHOLDER.\n"
+        "  This is fine for Phase 0 smoke tests on fixtures.\n"
+        "  Before Phase 1 (real Logan data), replace it:\n"
+        "    python scripts/build_rrna_seeds.py --email your@email.com\n\n"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Final targets
 # ---------------------------------------------------------------------------
 
