@@ -6,6 +6,6 @@ channels:
 dependencies:
   - awscli>=2.0
   - zstd>=1.5            # provides zstdcat
-  - bbtools>=39.0        # provides bbduk.sh
+  - bbtools              # bbduk.sh — bioconda versioning is 38.xx/39.xx; no pin needed
   - fastp>=0.23          # PE QC + merge (Phase 3, Illumina path)
   - sra-tools>=3.0       # SRA streaming (Phase 3)
