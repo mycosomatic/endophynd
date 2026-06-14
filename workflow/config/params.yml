@@ -9,10 +9,12 @@ cache_config: "workflow/config/cache.yml"
 
 # --- Baiting (bbduk) ---
 bait:
-  seed_ref: "resources/rrna_seeds.fa"   # conserved rDNA k-mer seed set (to be built)
+  seed_ref: "resources/rrna_seeds.fa"   # conserved rDNA k-mer seed set
   k: 31
   hdist: 1
-  minlength: 50                          # discard reads shorter than this after trimming
+  minlength: 50                          # discard reads shorter than this after baiting
+
+bait_threads: 4                          # threads for bbduk; raise on multi-core machines
 
 # --- Locus annotation (ITSx) ---
 itsx:

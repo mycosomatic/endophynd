@@ -1,2 +1,2 @@
 sample_id,source,accession,platform,input_type,notes
-FIXTURE_ITS,local,tests/fixtures/mock_its_reads.fa,synthetic,reads,Synthetic reads with known ITS — Phase 0 fixture
+FIXTURE_ITS,local,tests/fixtures/mock_its_reads.fa,synthetic,reads,Synthetic reads with known ITS — Phase 0/1 fixture

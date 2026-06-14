@@ -14,6 +14,7 @@ Run:
 """
 
 import os
+import sys
 import csv
 from pathlib import Path
 
@@ -30,6 +31,19 @@ def load_samples(sheet_path):
 
 SAMPLES = load_samples(config["samplesheet"])
 SAMPLE_IDS = [s["sample_id"] for s in SAMPLES]
+SAMPLE_BY_ID = {s["sample_id"]: s for s in SAMPLES}
+
+
+def _sample_field(wildcards, field, default=""):
+    return SAMPLE_BY_ID.get(wildcards.sample, {}).get(field, default)
+
+
+def _sample_source(wildcards):
+    return _sample_field(wildcards, "source", "local")
+
+
+def _sample_acc(wildcards):
+    return _sample_field(wildcards, "accession", "")
 
 
 # ---------------------------------------------------------------------------
@@ -96,8 +110,11 @@ rule all:
 
 # ---------------------------------------------------------------------------
 # Rule: triage
-# Metadata pre-check: estimate unitig file size, flag oversized accessions.
-# (Phase 0: stub — always passes)
+# Pre-flight checks before committing to streaming:
+#   - Logan: verify accession looks like GCA_XXXXXXXXXX (format only for now;
+#     size check from logan-pub/stats parquet is deferred to Phase 1.5)
+#   - local: verify the file exists
+#   - SRA: not yet implemented
 # ---------------------------------------------------------------------------
 
 rule triage:
@@ -105,23 +122,66 @@ rule triage:
         sheet=config["samplesheet"],
     output:
         passed=HOT / "triage" / "{sample}.passed",
+    params:
+        source=lambda wildcards: _sample_source(wildcards),
+        acc=lambda wildcards: _sample_acc(wildcards),
     log:
         COLD / "logs" / "triage" / "{sample}.log",
     conda:
-        "envs/retrieve.yml"
+        "envs/retrieve_bait.yml"
     shell:
         """
         mkdir -p $(dirname {output.passed})
-        # Phase 0 stub: write a pass token
-        echo "triage_ok" > {output.passed}
-        echo "[triage] {wildcards.sample}: passed (stub)" > {log}
+        mkdir -p $(dirname {log})
+
+        SOURCE="{params.source}"
+        ACC="{params.acc}"
+
+        if [ "$SOURCE" = "logan" ]; then
+            # Basic accession format check (GCA_XXXXXXXXXX or similar).
+            # Does NOT download; size check from parquet deferred to Phase 1.5.
+            if echo "$ACC" | grep -qE '^(GCA|GCF)_[0-9]{{9}}\.[0-9]+$'; then
+                echo "[triage] {wildcards.sample}: Logan $ACC format OK" | tee {log}
+            else
+                echo "[triage][WARN] {wildcards.sample}: '$ACC' doesn't look like a" \
+                     "standard GCA/GCF accession — proceeding anyway" | tee {log}
+            fi
+
+        elif [ "$SOURCE" = "local" ]; then
+            if [ -f "$ACC" ]; then
+                echo "[triage] {wildcards.sample}: local file $ACC exists" | tee {log}
+            else
+                echo "[triage][ERROR] {wildcards.sample}: local file not found: $ACC" | tee {log}
+                exit 1
+            fi
+
+        else
+            echo "[triage][ERROR] source='$SOURCE' not supported." \
+                 "Use 'logan' or 'local'." | tee {log}
+            exit 1
+        fi
+
+        echo "triage_ok source=$SOURCE acc=$ACC" > {output.passed}
         """
 
 
 # ---------------------------------------------------------------------------
-# Rule: retrieve
-# Stream Logan unitigs or SRA reads; pipe through bait; keep only candidates.
-# (Phase 0: copies fixture directly; no streaming)
+# Rule: retrieve_and_bait
+# Stream input → k-mer bait → write candidate rDNA reads only.
+#
+# Logan path (primary):
+#   aws s3 cp s3://logan-pub/u/<ACC>/<ACC>.unitigs.fa.zst - --no-sign-request
+#     | zstdcat
+#     | bbduk.sh in=stdin.fa ref=<seeds> outm=<baited.fa> k=31 hdist=1
+#
+# The whole unitig file is NEVER written to disk — only the small baited
+# output lands on the hot cache.  bbduk writes match statistics to
+# bait_stats.txt so discard rate is tracked as a QC metric.
+#
+# Local path (fixtures / pre-downloaded files):
+#   bbduk.sh in=<file> ref=<seeds> outm=<baited.fa> ...
+#
+# SRA path: Phase 3.
 # ---------------------------------------------------------------------------
 
 rule retrieve_and_bait:
@@ -129,26 +189,75 @@ rule retrieve_and_bait:
         passed=HOT / "triage" / "{sample}.passed",
     output:
         baited=HOT / "baited" / "{sample}.baited.fa",
+        bait_stats=HOT / "baited" / "{sample}.bait_stats.txt",
     params:
+        source=lambda wildcards: _sample_source(wildcards),
+        acc=lambda wildcards: _sample_acc(wildcards),
         seed_ref=config["bait"]["seed_ref"],
         k=config["bait"]["k"],
         hdist=config["bait"]["hdist"],
         minlength=config["bait"]["minlength"],
+    threads: config.get("bait_threads", 4)
     log:
         COLD / "logs" / "bait" / "{sample}.log",
     conda:
-        "envs/bait.yml"
+        "envs/retrieve_bait.yml"
     shell:
         """
         mkdir -p $(dirname {output.baited})
-        # Phase 0 stub: copy fixture without real streaming or baiting.
-        # Phase 1 will replace this with:
-        #   aws s3 cp s3://logan-pub/u/$ACC/$ACC.unitigs.fa.zst - --no-sign-request \
-        #     | zstdcat \
-        #     | bbduk.sh in=stdin.fa ref={params.seed_ref} outm={output.baited} \
-        #         k={params.k} hdist={params.hdist} minlength={params.minlength}
-        cp tests/fixtures/mock_its_reads.fa {output.baited}
-        echo "[bait] {wildcards.sample}: stub copy done" > {log}
+        mkdir -p $(dirname {log})
+
+        SOURCE="{params.source}"
+        ACC="{params.acc}"
+
+        if [ "$SOURCE" = "logan" ]; then
+            # Stream compressed unitigs from Logan public S3 bucket.
+            # --no-sign-request: public bucket, no AWS credentials needed.
+            # Pipe chain: download → decompress → bait.  Nothing hits disk
+            # except the small baited output.
+            {{
+                aws s3 cp \
+                    "s3://logan-pub/u/${{ACC}}/${{ACC}}.unitigs.fa.zst" \
+                    - \
+                    --no-sign-request \
+                | zstdcat \
+                | bbduk.sh \
+                    in=stdin.fa \
+                    ref={params.seed_ref} \
+                    outm={output.baited} \
+                    stats={output.bait_stats} \
+                    k={params.k} \
+                    hdist={params.hdist} \
+                    minlength={params.minlength} \
+                    threads={threads}
+            }} 2>> {log}
+
+        elif [ "$SOURCE" = "local" ]; then
+            bbduk.sh \
+                in="$ACC" \
+                ref={params.seed_ref} \
+                outm={output.baited} \
+                stats={output.bait_stats} \
+                k={params.k} \
+                hdist={params.hdist} \
+                minlength={params.minlength} \
+                threads={threads} \
+                2>> {log}
+
+        else
+            echo "[ERROR] source='$SOURCE' not yet implemented." \
+                 "Supported: logan, local. SRA support in Phase 3." >> {log}
+            exit 1
+        fi
+
+        # Warn (but don't fail) if bbduk found nothing — could be a real
+        # absence of rDNA, or a seed-set miss.  Gate stats log the rate.
+        NSEQ=$(grep -c "^>" {output.baited} 2>/dev/null || echo 0)
+        echo "[bait] {wildcards.sample}: $NSEQ candidate sequences baited" >> {log}
+        if [ "$NSEQ" = "0" ]; then
+            echo "[bait][WARN] {wildcards.sample}: 0 sequences baited — check" \
+                 "seed file and accession." >> {log}
+        fi
         """
 
 
@@ -274,6 +383,7 @@ if config.get("delete_transient_after_classify", True):
             """
             mkdir -p $(dirname {output[0]})
             rm -f {HOT}/baited/{wildcards.sample}.baited.fa \
+                  {HOT}/baited/{wildcards.sample}.bait_stats.txt \
                   {HOT}/gated/{wildcards.sample}.gated.fa \
                   {HOT}/gated/{wildcards.sample}.gate_report.tsv \
                   {HOT}/features/{wildcards.sample}.features.fa \
@@ -310,10 +420,11 @@ rule provenance:
             "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
             "git_commit": git_sha(),
             "samples": SAMPLE_IDS,
-            "phase": "0-scaffold",
+            "phase": "1-read-level-discovery",
             "note": (
-                "Phase 0 stub run — all rules are placeholders. "
-                "No real biological results are produced."
+                "Phase 1: real Logan streaming + bbduk baiting. "
+                "Annotation, dereplication, and classification are still stubs "
+                "(Phase 2). Taxonomy results are placeholders only."
             ),
             "params": config,
         }

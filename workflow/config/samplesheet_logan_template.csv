@@ -1,0 +1,2 @@
+sample_id,source,accession,platform,input_type,notes
+GBI_EXAMPLE,logan,GCA_000001405.3,illumina,unitigs,Example GBI accession — replace with real ones

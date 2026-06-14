@@ -45,35 +45,47 @@ class RetrievalRoute:
     accession: Optional[str]
     local_path: Optional[str]
 
-    def streaming_command(self, output_path: str, seed_ref: str, k: int, hdist: int) -> str:
+    def streaming_command(
+        self,
+        output_path: str,
+        seed_ref: str,
+        k: int,
+        hdist: int,
+        minlength: int = 50,
+        threads: int = 4,
+        stats_path: Optional[str] = None,
+    ) -> str:
         """
-        Return a shell command that streams + baits the input, writing to output_path.
-        Phase 0: only 'local' source is implemented. Logan and SRA are stubs with
-        the real command embedded as a comment so Phase 1 can uncomment them.
+        Return a shell command string that streams + baits the input.
+
+        The returned command writes baited FASTA to output_path.
+        For Logan: the whole unitig file never touches disk — stream only.
+        For local: bbduk reads the file directly.
+        For SRA: not yet implemented (Phase 3).
         """
+        stats_arg = f"stats={stats_path}" if stats_path else ""
+
         if self.source == Source.LOCAL:
             return (
                 f"bbduk.sh in={self.local_path} ref={seed_ref} "
-                f"outm={output_path} k={k} hdist={hdist}"
-            )
+                f"outm={output_path} {stats_arg} "
+                f"k={k} hdist={hdist} minlength={minlength} threads={threads}"
+            ).strip()
 
         if self.source == Source.LOGAN:
             acc = self.accession
-            # Real Phase 1 command:
-            # aws s3 cp s3://logan-pub/u/{acc}/{acc}.unitigs.fa.zst - --no-sign-request \
-            #   | zstdcat \
-            #   | bbduk.sh in=stdin.fa ref={seed_ref} outm={output_path} k={k} hdist={hdist}
-            raise NotImplementedError(
-                f"Logan streaming not yet implemented (Phase 1). Accession: {acc}"
-            )
+            s3_url = f"s3://logan-pub/u/{acc}/{acc}.unitigs.fa.zst"
+            return (
+                f"aws s3 cp {s3_url} - --no-sign-request "
+                f"| zstdcat "
+                f"| bbduk.sh in=stdin.fa ref={seed_ref} "
+                f"outm={output_path} {stats_arg} "
+                f"k={k} hdist={hdist} minlength={minlength} threads={threads}"
+            ).strip()
 
         if self.source == Source.SRA:
-            acc = self.accession
-            # Real Phase 3 command (SRA path):
-            # fastq-dump --stdout {acc} \
-            #   | bbduk.sh in=stdin.fq ref={seed_ref} outm={output_path} k={k} hdist={hdist}
             raise NotImplementedError(
-                f"SRA streaming not yet implemented (Phase 3). Accession: {acc}"
+                f"SRA streaming not yet implemented (Phase 3). Accession: {self.accession}"
             )
 
         raise ValueError(f"Unknown source: {self.source}")
