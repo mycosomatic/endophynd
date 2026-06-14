@@ -1,0 +1,11 @@
+name: endophynd-classify
+channels:
+  - conda-forge
+  - bioconda
+  - qiime2
+  - defaults
+dependencies:
+  - qiime2>=2024.2
+  - q2-feature-classifier
+  - q2-diversity
+  - biom-format>=2.1

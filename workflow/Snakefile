@@ -1,0 +1,289 @@
+"""
+Endophynd Snakemake workflow.
+
+Phases:
+  0  — scaffold (stub rules; emits placeholder .qza)
+  1  — read-level discovery MVP (Logan unitigs, streaming)
+  1.5 — calibration + mock community
+  2  — multi-locus classification + HTML report
+  ...
+
+Run:
+  snakemake --configfile workflow/config/params.yml --cores 4
+  snakemake --configfile workflow/config/params.yml --cores 1 --dry-run
+"""
+
+import os
+import csv
+from pathlib import Path
+
+configfile: "workflow/config/params.yml"
+
+
+# ---------------------------------------------------------------------------
+# Sample sheet
+# ---------------------------------------------------------------------------
+
+def load_samples(sheet_path):
+    with open(sheet_path) as f:
+        return list(csv.DictReader(f))
+
+SAMPLES = load_samples(config["samplesheet"])
+SAMPLE_IDS = [s["sample_id"] for s in SAMPLES]
+
+
+# ---------------------------------------------------------------------------
+# Cache directories (resolved at runtime from cache.yml)
+# ---------------------------------------------------------------------------
+
+import yaml as _yaml
+
+with open(config["cache_config"]) as _f:
+    _cache = _yaml.safe_load(_f)
+
+HOT = Path(os.path.expanduser(_cache["hot_dir"]))
+COLD = Path(os.path.expanduser(_cache["cold_dir"]))
+DB = Path(os.path.expanduser(_cache["db_dir"]))
+HOT_CAP_GB = _cache["hot_cap_gb"]
+
+# Results land on cold storage
+RUN_ID = config.get("run_id") or "run_001"
+RESULTS = COLD / "results" / RUN_ID
+
+
+# ---------------------------------------------------------------------------
+# Final targets
+# ---------------------------------------------------------------------------
+
+rule all:
+    input:
+        expand(str(RESULTS / "{sample}" / "feature_table.stub.qza"), sample=SAMPLE_IDS),
+        str(RESULTS / "provenance.json"),
+
+
+# ---------------------------------------------------------------------------
+# Rule: triage
+# Metadata pre-check: estimate unitig file size, flag oversized accessions.
+# (Phase 0: stub — always passes)
+# ---------------------------------------------------------------------------
+
+rule triage:
+    input:
+        sheet=config["samplesheet"],
+    output:
+        passed=HOT / "triage" / "{sample}.passed",
+    log:
+        COLD / "logs" / "triage" / "{sample}.log",
+    conda:
+        "envs/retrieve.yml"
+    shell:
+        """
+        mkdir -p $(dirname {output.passed})
+        # Phase 0 stub: write a pass token
+        echo "triage_ok" > {output.passed}
+        echo "[triage] {wildcards.sample}: passed (stub)" > {log}
+        """
+
+
+# ---------------------------------------------------------------------------
+# Rule: retrieve
+# Stream Logan unitigs or SRA reads; pipe through bait; keep only candidates.
+# (Phase 0: copies fixture directly; no streaming)
+# ---------------------------------------------------------------------------
+
+rule retrieve_and_bait:
+    input:
+        passed=HOT / "triage" / "{sample}.passed",
+    output:
+        baited=HOT / "baited" / "{sample}.baited.fa",
+    params:
+        seed_ref=config["bait"]["seed_ref"],
+        k=config["bait"]["k"],
+        hdist=config["bait"]["hdist"],
+        minlength=config["bait"]["minlength"],
+    log:
+        COLD / "logs" / "bait" / "{sample}.log",
+    conda:
+        "envs/bait.yml"
+    shell:
+        """
+        mkdir -p $(dirname {output.baited})
+        # Phase 0 stub: copy fixture without real streaming or baiting.
+        # Phase 1 will replace this with:
+        #   aws s3 cp s3://logan-pub/u/$ACC/$ACC.unitigs.fa.zst - --no-sign-request \
+        #     | zstdcat \
+        #     | bbduk.sh in=stdin.fa ref={params.seed_ref} outm={output.baited} \
+        #         k={params.k} hdist={params.hdist} minlength={params.minlength}
+        cp tests/fixtures/mock_its_reads.fa {output.baited}
+        echo "[bait] {wildcards.sample}: stub copy done" > {log}
+        """
+
+
+# ---------------------------------------------------------------------------
+# Rule: annotate_and_gate
+# Run ITSx; measure informative length; emit pass/coarse/fine/discard labels.
+# (Phase 0: stub — all reads pass as "fine")
+# ---------------------------------------------------------------------------
+
+rule annotate_and_gate:
+    input:
+        baited=HOT / "baited" / "{sample}.baited.fa",
+    output:
+        gated=HOT / "gated" / "{sample}.gated.fa",
+        gate_report=HOT / "gated" / "{sample}.gate_report.tsv",
+    log:
+        COLD / "logs" / "gate" / "{sample}.log",
+    conda:
+        "envs/annotate.yml"
+    shell:
+        """
+        mkdir -p $(dirname {output.gated})
+        # Phase 0 stub: pass everything through.
+        cp {input.baited} {output.gated}
+        printf "read_id\tlocus\tinformative_bp\tgate_decision\n" > {output.gate_report}
+        echo "[gate] {wildcards.sample}: stub (all reads passed as fine)" > {log}
+        """
+
+
+# ---------------------------------------------------------------------------
+# Rule: dereplicate
+# vsearch dereplication → features + frequencies.
+# (Phase 0: stub — one feature per input)
+# ---------------------------------------------------------------------------
+
+rule dereplicate:
+    input:
+        gated=HOT / "gated" / "{sample}.gated.fa",
+    output:
+        features=HOT / "features" / "{sample}.features.fa",
+        counts=HOT / "features" / "{sample}.counts.tsv",
+    log:
+        COLD / "logs" / "derep" / "{sample}.log",
+    conda:
+        "envs/annotate.yml"
+    shell:
+        """
+        mkdir -p $(dirname {output.features})
+        # Phase 0 stub: treat entire baited file as one feature.
+        cp {input.gated} {output.features}
+        printf "feature_id\t{wildcards.sample}\n" > {output.counts}
+        printf "feat_001\t1\n" >> {output.counts}
+        echo "[derep] {wildcards.sample}: stub" > {log}
+        """
+
+
+# ---------------------------------------------------------------------------
+# Rule: classify
+# q2-feature-classifier against UNITE/SILVA; emit taxonomy TSV.
+# (Phase 0: stub — "k__Fungi;unclassified")
+# ---------------------------------------------------------------------------
+
+rule classify:
+    input:
+        features=HOT / "features" / "{sample}.features.fa",
+    output:
+        taxonomy=RESULTS / "{sample}" / "taxonomy.tsv",
+    log:
+        COLD / "logs" / "classify" / "{sample}.log",
+    conda:
+        "envs/classify.yml"
+    shell:
+        """
+        mkdir -p $(dirname {output.taxonomy})
+        printf "Feature ID\tTaxon\tConfidence\tlocus\tinformative_bp\trecovery_path\n" \
+            > {output.taxonomy}
+        printf "feat_001\tk__Fungi;unclassified\t0.0\tITS1\t0\tread_stub\n" \
+            >> {output.taxonomy}
+        echo "[classify] {wildcards.sample}: stub" > {log}
+        """
+
+
+# ---------------------------------------------------------------------------
+# Rule: build_feature_table
+# Assemble QIIME2 .qza FeatureTable[Frequency] from counts + taxonomy.
+# (Phase 0: stub .qza — a zip with a placeholder artifact)
+# ---------------------------------------------------------------------------
+
+rule build_feature_table:
+    input:
+        counts=HOT / "features" / "{sample}.counts.tsv",
+        taxonomy=RESULTS / "{sample}" / "taxonomy.tsv",
+    output:
+        qza=RESULTS / "{sample}" / "feature_table.stub.qza",
+    log:
+        COLD / "logs" / "table" / "{sample}.log",
+    conda:
+        "envs/classify.yml"
+    shell:
+        """
+        mkdir -p $(dirname {output.qza})
+        # Phase 0: write a placeholder zip so Snakemake considers the rule satisfied.
+        # Phase 1 will replace this with real BIOM construction + qiime tools import.
+        echo "STUB_QZA sample={wildcards.sample}" | zip - > {output.qza} 2>/dev/null || \
+            printf "STUB_QZA sample={wildcards.sample}" > {output.qza}
+        echo "[table] {wildcards.sample}: stub .qza written" > {log}
+        """
+
+
+# ---------------------------------------------------------------------------
+# Rule: cleanup_transient
+# Delete per-accession hot-cache files after classification.
+# Triggered automatically when delete_transient_after_classify is true.
+# ---------------------------------------------------------------------------
+
+if config.get("delete_transient_after_classify", True):
+    rule cleanup_transient:
+        input:
+            qza=RESULTS / "{sample}" / "feature_table.stub.qza",
+        output:
+            touch(HOT / "cleaned" / "{sample}.cleaned"),
+        shell:
+            """
+            mkdir -p $(dirname {output[0]})
+            rm -f {HOT}/baited/{wildcards.sample}.baited.fa \
+                  {HOT}/gated/{wildcards.sample}.gated.fa \
+                  {HOT}/gated/{wildcards.sample}.gate_report.tsv \
+                  {HOT}/features/{wildcards.sample}.features.fa \
+                  {HOT}/features/{wildcards.sample}.counts.tsv
+            """
+
+
+# ---------------------------------------------------------------------------
+# Rule: provenance
+# Write provenance.json for the run.
+# ---------------------------------------------------------------------------
+
+rule provenance:
+    input:
+        qzas=expand(
+            str(RESULTS / "{sample}" / "feature_table.stub.qza"),
+            sample=SAMPLE_IDS,
+        ),
+    output:
+        prov=RESULTS / "provenance.json",
+    run:
+        import json, datetime, subprocess
+
+        def git_sha():
+            try:
+                return subprocess.check_output(
+                    ["git", "rev-parse", "HEAD"], text=True
+                ).strip()
+            except Exception:
+                return "unknown"
+
+        prov = {
+            "run_id": RUN_ID,
+            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "git_commit": git_sha(),
+            "samples": SAMPLE_IDS,
+            "phase": "0-scaffold",
+            "note": (
+                "Phase 0 stub run — all rules are placeholders. "
+                "No real biological results are produced."
+            ),
+            "params": config,
+        }
+        os.makedirs(str(RESULTS), exist_ok=True)
+        with open(str(output.prov), "w") as f:
+            json.dump(prov, f, indent=2)

@@ -1,0 +1,9 @@
+name: endophynd-bait
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bbtools>=39.0
+  - fastp>=0.23
+  - sortmerna>=4.3

@@ -1,0 +1,21 @@
+# Length-to-resolution calibration map.
+# Populated by Phase 1.5 benchmarks (benchmarks/calibration/).
+# Until then, gate.py uses params.yml fallback_thresholds.
+# DO NOT use fallback thresholds for publication.
+#
+# Format:
+#   locus:
+#     region:
+#       clade:
+#         genus_min_bp: <int>
+#         species_min_bp: <int>
+#
+# Example (placeholder — NOT empirically validated):
+# ITS1:
+#   Ascomycota:
+#     genus_min_bp: 75
+#     species_min_bp: 125
+#
+# Status: EMPTY — to be filled by Phase 1.5
+
+calibration: {}

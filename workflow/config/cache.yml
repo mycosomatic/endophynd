@@ -1,0 +1,13 @@
+# Cache manager configuration.
+# hot_dir: internal SSD — transient per-accession files; size-capped.
+# cold_dir: external drive — finished results and archived inputs.
+# db_dir: reference databases; can live on hot or cold depending on DB size.
+#
+# Paths use ~ expansion. Override with environment variables
+# ENDOPHYND_HOT, ENDOPHYND_COLD, ENDOPHYND_DB at runtime.
+
+hot_dir: "~/endophynd_cache/hot"
+hot_cap_gb: 180                          # hard cap; workflow pauses if exceeded
+
+cold_dir: "~/endophynd_cache/cold"
+db_dir: "~/endophynd_cache/db"          # move to external drive path on your machine

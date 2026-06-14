@@ -1,0 +1,70 @@
+# Endophynd runtime parameters
+# Edit this file to configure a run. See endophynd_development_plan.md for details.
+
+# --- Input ---
+samplesheet: "workflow/config/samplesheet.csv"
+
+# --- Cache ---
+cache_config: "workflow/config/cache.yml"
+
+# --- Baiting (bbduk) ---
+bait:
+  seed_ref: "resources/rrna_seeds.fa"   # conserved rDNA k-mer seed set (to be built)
+  k: 31
+  hdist: 1
+  minlength: 50                          # discard reads shorter than this after trimming
+
+# --- Locus annotation (ITSx) ---
+itsx:
+  organisms: "Fungi"
+  regions: "ITS1,5.8S,ITS2"
+  cpu: 4
+
+# --- Gating ---
+gate:
+  calibration_map: "workflow/config/calibration_map.yml"
+  # Fallback thresholds used until the calibration map is built (Phase 1.5).
+  # These are guesses; DO NOT use for publication.
+  fallback_thresholds:
+    ITS1:
+      coarse_min_bp: 50
+      fine_min_bp: 100
+    ITS2:
+      coarse_min_bp: 50
+      fine_min_bp: 100
+    "5.8S":
+      coarse_min_bp: 0   # conserved only — classify coarsely regardless
+      fine_min_bp: 0
+    LSU:
+      coarse_min_bp: 100
+      fine_min_bp: 200
+    SSU:
+      coarse_min_bp: 100
+      fine_min_bp: 200
+
+# --- Dereplication (vsearch) ---
+derep:
+  min_size: 1                           # keep singletons in MVP; tune after calibration
+  identity: 0.97                        # 97% clustering fallback if exact derep too fragmented
+
+# --- Classification ---
+classify:
+  # Databases are paths relative to db_dir (see cache.yml)
+  ITS:
+    method: q2-feature-classifier
+    db: "unite/unite_dynamic_s_all_10.05.2021.qza"  # placeholder path; update when DB is fetched
+  SSU:
+    method: phyloFlash
+    db: "silva/138.1/SSU"              # placeholder
+  LSU:
+    method: q2-feature-classifier
+    db: "silva/138.1/LSU"              # placeholder
+
+# --- Output ---
+output:
+  results_dir: null                     # overridden to cold_dir/results at runtime
+  run_id: null                          # set by CLI or auto-generated from timestamp
+
+# --- Workflow behavior ---
+max_parallel_accessions: 4
+delete_transient_after_classify: true   # process-then-delete; set false only for debugging

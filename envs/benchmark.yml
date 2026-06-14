@@ -1,0 +1,12 @@
+name: endophynd-benchmark
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - insilicoseq>=2.0
+  - art>=2016.06.05
+  - minia>=3.2
+  - minimap2>=2.28
+  - blast>=2.15
+  - mmseqs2>=15.0

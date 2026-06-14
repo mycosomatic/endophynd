@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Snakemake
+.snakemake/
+snakemake_jobs/
+
+# Cache directories (live outside the repo by design)
+endophynd_cache/
+*.hot/
+*.cold/
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+
+# QIIME2
+*.qza
+*.qzv
+
+# Large data files (fixtures are kept; everything else is excluded)
+*.fastq.gz
+*.fastq
+*.fq.gz
+*.bam
+*.sam
+*.zst
+*.biom
+
+# Conda
+.conda/
+conda-meta/
