@@ -128,7 +128,7 @@ rule triage:
     log:
         COLD / "logs" / "triage" / "{sample}.log",
     conda:
-        "envs/retrieve_bait.yml"
+        "../envs/retrieve_bait.yml"
     shell:
         """
         mkdir -p $(dirname {output.passed})
@@ -201,7 +201,7 @@ rule retrieve_and_bait:
     log:
         COLD / "logs" / "bait" / "{sample}.log",
     conda:
-        "envs/retrieve_bait.yml"
+        "../envs/retrieve_bait.yml"
     shell:
         """
         mkdir -p $(dirname {output.baited})
@@ -276,7 +276,7 @@ rule annotate_and_gate:
     log:
         COLD / "logs" / "gate" / "{sample}.log",
     conda:
-        "envs/annotate.yml"
+        "../envs/annotate.yml"
     shell:
         """
         mkdir -p $(dirname {output.gated})
@@ -302,7 +302,7 @@ rule dereplicate:
     log:
         COLD / "logs" / "derep" / "{sample}.log",
     conda:
-        "envs/annotate.yml"
+        "../envs/annotate.yml"
     shell:
         """
         mkdir -p $(dirname {output.features})
@@ -328,7 +328,7 @@ rule classify:
     log:
         COLD / "logs" / "classify" / "{sample}.log",
     conda:
-        "envs/classify.yml"
+        "../envs/classify.yml"
     shell:
         """
         mkdir -p $(dirname {output.taxonomy})
@@ -355,7 +355,7 @@ rule build_feature_table:
     log:
         COLD / "logs" / "table" / "{sample}.log",
     conda:
-        "envs/classify.yml"
+        "../envs/classify.yml"
     shell:
         """
         mkdir -p $(dirname {output.qza})
