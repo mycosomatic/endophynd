@@ -7,3 +7,4 @@ dependencies:
   - itsx>=1.1
   - hmmer>=3.4
   - vsearch>=2.28
+  - pyyaml>=6.0       # parse_itsx.py and gate.py need yaml
