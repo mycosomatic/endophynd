@@ -138,13 +138,13 @@ rule triage:
         ACC="{params.acc}"
 
         if [ "$SOURCE" = "logan" ]; then
-            # Basic accession format check (GCA_XXXXXXXXXX or similar).
-            # Does NOT download; size check from parquet deferred to Phase 1.5.
-            if echo "$ACC" | grep -qE '^(GCA|GCF)_[0-9]{{9}}\.[0-9]+$'; then
+            # Basic accession format check: SRR/ERR/DRR run accessions.
+            # Does NOT download; size check from logan-pub/stat parquet deferred to Phase 1.5.
+            if echo "$ACC" | grep -qE '^(SRR|ERR|DRR)[0-9]+$'; then
                 echo "[triage] {wildcards.sample}: Logan $ACC format OK" | tee {log}
             else
                 echo "[triage][WARN] {wildcards.sample}: '$ACC' doesn't look like a" \
-                     "standard GCA/GCF accession — proceeding anyway" | tee {log}
+                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee {log}
             fi
 
         elif [ "$SOURCE" = "local" ]; then
