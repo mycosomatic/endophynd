@@ -273,6 +273,9 @@ rule annotate_and_gate:
     output:
         gated=HOT / "gated" / "{sample}.gated.fa",
         gate_report=HOT / "gated" / "{sample}.gate_report.tsv",
+    params:
+        itsx_prefix=lambda wildcards: str(HOT / "gated" / f"{wildcards.sample}.itsx"),
+    threads: config["itsx"]["cpu"]
     log:
         COLD / "logs" / "gate" / "{sample}.log",
     conda:
@@ -280,10 +283,36 @@ rule annotate_and_gate:
     shell:
         """
         mkdir -p $(dirname {output.gated})
-        # Phase 0 stub: pass everything through.
-        cp {input.baited} {output.gated}
-        printf "read_id\tlocus\tinformative_bp\tgate_decision\n" > {output.gate_report}
-        echo "[gate] {wildcards.sample}: stub (all reads passed as fine)" > {log}
+
+        NBAITED=$(grep -c '^>' {input.baited} 2>/dev/null || echo 0)
+        echo "[gate] {wildcards.sample}: running ITSx on $NBAITED baited sequences" > {log}
+
+        # Annotate locus boundaries (ITS1, 5.8S, ITS2, LSU, SSU).
+        # --organisms F: Fungi HMM profiles only — faster than 'all'.
+        # --save_regions all: write per-locus FASTAs for Phase 2 classification.
+        # --partial 50: keep sequences covering ≥50% of any ITS region.
+        ITSx -i {input.baited} \
+             -o {params.itsx_prefix} \
+             --cpu {threads} \
+             --multi_thread T \
+             --organisms F \
+             --save_regions all \
+             --partial 50 \
+             --minlen 50 \
+             --heuristics T \
+             2>> {log}
+
+        # Parse positions.txt, apply gate thresholds, write gated FASTA + report.
+        python scripts/parse_itsx.py \
+            --baited {input.baited} \
+            --itsx-prefix {params.itsx_prefix} \
+            --params workflow/config/params.yml \
+            --gate-report {output.gate_report} \
+            --gated-out {output.gated} \
+            2>> {log}
+
+        NPASSED=$(grep -c '^>' {output.gated} 2>/dev/null || echo 0)
+        echo "[gate] {wildcards.sample}: $NPASSED sequences passed gate" >> {log}
         """
 
 

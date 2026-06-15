@@ -18,8 +18,7 @@ bait_threads: 4                          # threads for bbduk; raise on multi-cor
 
 # --- Locus annotation (ITSx) ---
 itsx:
-  organisms: "Fungi"
-  regions: "ITS1,5.8S,ITS2"
+  organisms: "F"          # ITSx organism code: F = Fungi only (faster than 'all')
   cpu: 4
 
 # --- Gating ---
