@@ -127,10 +127,9 @@ rule all:
 # ---------------------------------------------------------------------------
 # Rule: triage
 # Pre-flight checks before committing to streaming:
-#   - Logan: verify accession looks like GCA_XXXXXXXXXX (format only for now;
-#     size check from logan-pub/stats parquet is deferred to Phase 1.5)
+#   - Logan: verify accession looks like SRR/ERR/DRR (format only; size check deferred to Phase 1.5)
 #   - local: verify the file exists
-#   - SRA: not yet implemented
+#   - SRA: verify accession looks like SRR/ERR/DRR (format only; no network call)
 # ---------------------------------------------------------------------------
 
 rule triage:
@@ -171,9 +170,18 @@ rule triage:
                 exit 1
             fi
 
+        elif [ "$SOURCE" = "sra" ]; then
+            # Validate accession format only — no network call.
+            if echo "$ACC" | grep -qE '^(SRR|ERR|DRR)[0-9]+$'; then
+                echo "[triage] {wildcards.sample}: SRA $ACC format OK" | tee {log}
+            else
+                echo "[triage][WARN] {wildcards.sample}: '$ACC' doesn't look like a" \
+                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee {log}
+            fi
+
         else
             echo "[triage][ERROR] source='$SOURCE' not supported." \
-                 "Use 'logan' or 'local'." | tee {log}
+                 "Use 'logan', 'local', or 'sra'." | tee {log}
             exit 1
         fi
 
@@ -185,19 +193,21 @@ rule triage:
 # Rule: retrieve_and_bait
 # Stream input → k-mer bait → write candidate rDNA reads only.
 #
-# Logan path (primary):
+# Logan path:
 #   aws s3 cp s3://logan-pub/u/<ACC>/<ACC>.unitigs.fa.zst - --no-sign-request
 #     | zstdcat
 #     | bbduk.sh in=stdin.fa ref=<seeds> outm=<baited.fa> k=31 hdist=1
 #
-# The whole unitig file is NEVER written to disk — only the small baited
+# SRA path:
+#   fasterq-dump <ACC> --stdout --split-spot --skip-technical
+#     | bbduk.sh in=stdin.fq ref=<seeds> outm=<baited.fa> k=31 hdist=1
+#
+# Both paths: the raw data is NEVER written to disk — only the small baited
 # output lands on the hot cache.  bbduk writes match statistics to
 # bait_stats.txt so discard rate is tracked as a QC metric.
 #
 # Local path (fixtures / pre-downloaded files):
 #   bbduk.sh in=<file> ref=<seeds> outm=<baited.fa> ...
-#
-# SRA path: Phase 3.
 # ---------------------------------------------------------------------------
 
 rule retrieve_and_bait:
@@ -260,9 +270,36 @@ rule retrieve_and_bait:
                 threads={threads} \
                 2>> {log}
 
+        elif [ "$SOURCE" = "sra" ]; then
+            # Stream raw reads from NCBI SRA via fasterq-dump.
+            # --stdout      : write FASTQ to stdout (no <ACC>.fastq temp file on disk)
+            # --split-spot  : interleave PE reads — R1 then R2 per spot; bbduk
+            #                 sees each read independently (no int=t needed for baiting)
+            # --skip-technical: omit technical reads (barcodes, linkers)
+            # fasterq-dump still creates small internal temp files; they land in
+            # the current directory by default (typically the Snakemake workdir).
+            # The full raw FASTQ stream is NEVER written to disk — only the small
+            # baited output lands on the hot cache.
+            {{
+                fasterq-dump "$ACC" \
+                    --stdout \
+                    --split-spot \
+                    --skip-technical \
+                    --threads {threads} \
+                | bbduk.sh \
+                    in=stdin.fq \
+                    ref={params.seed_ref} \
+                    outm={output.baited} \
+                    stats={output.bait_stats} \
+                    k={params.k} \
+                    hdist={params.hdist} \
+                    minlength={params.minlength} \
+                    threads={threads}
+            }} 2>> {log}
+
         else
-            echo "[ERROR] source='$SOURCE' not yet implemented." \
-                 "Supported: logan, local. SRA support in Phase 3." >> {log}
+            echo "[ERROR] source='$SOURCE' not supported." \
+                 "Supported: logan, local, sra." >> {log}
             exit 1
         fi
 

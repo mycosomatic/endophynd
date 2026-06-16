@@ -1,3 +1,3 @@
 sample_id,source,accession,platform,input_type,notes
 FIXTURE_ITS,local,tests/fixtures/mock_its_reads.fa,synthetic,reads,Synthetic reads with known ITS — Phase 0/1 fixture
-ERR15383529,logan,ERR15383529,illumina,unitigs,Alternaria alternata — Phase 1 Logan streaming test
+ERR15383529,sra,ERR15383529,illumina,reads,Alternaria alternata PE151 WGS 42x — SRA raw-read path test

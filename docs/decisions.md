@@ -111,6 +111,12 @@
 - Alternatives considered: (a) Keep amplicon thresholds — 0 fine sequences, classification impossible; (b) Remove thresholds entirely — accept all BLAST hits; too permissive.
 - Status: Accepted. Marked as provisional until Phase 1.5 calibration map replaces fallback values.
 
+### 2026-06-16 — D19: Add SRA raw-read streaming path alongside Logan unitig path
+- Decision: Implement `source=sra` in `triage` and `retrieve_and_bait` rules using `fasterq-dump --stdout --split-spot --skip-technical | bbduk.sh in=stdin.fq`. Set `minlength=100` (was 50) as the post-bait length floor.
+- Why: Logan unitigs for rDNA-rich regions fragment to ~33 bp (k=31 assembly floor), making them too short for most classifiers. SRA raw reads from the same accession are full-length (PE151 for ERR15383529) and will pass ITSx, vsearch, and most classifiers normally. The raw-read path also enables Phase 1.5 Logan-vs-SRA concordance testing (D14). `minlength=50` was ineffective for Logan FASTA stdin (handoff note #4) so raising to 100 has no regression; 100 is a safe floor for PE151 reads.
+- Alternatives considered: (a) Keep Logan-only — limits downstream classifier options; (b) download full FASTQ to disk first — violates streaming/process-then-delete design (D12); (c) `fastq-dump --stdout --split-spot` (older tool) — true streaming but slower; fasterq-dump is the current NCBI recommendation.
+- Status: Accepted.
+
 ---
 
 ### Open decisions
