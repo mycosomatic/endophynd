@@ -20,8 +20,19 @@ full design. See `docs/decisions.md` for the append-only decision log.
 - Log every significant decision in `docs/decisions.md`.
 
 ## Current phase
-Phase 0 — scaffold and decisions.
-Exit criterion: empty pipeline runs end-to-end on fixtures within budget, emits a stub .qza.
+Phase 1 — SRA raw-read streaming path (next immediate task).
+
+**Status as of 2026-06-16:**
+- Phase 0 scaffold complete. Logan path functional for unitigs.
+- Logan path tested on ERR15383529 (Alternaria alternata WGS PE150, PRJEB93827).
+- **Key finding (D20)**: Logan unitigs from WGS rDNA are capped at 65bp due to
+  tandem repeat assembly collapse. Single-copy genes (RPB2 3389bp, RPB1 1991bp,
+  TEF1a 483bp) assemble fine — confirming Logan works, rDNA is the exception.
+- **Seed file cleaned (D19a)**: 15 mRNA contaminant sequences removed; 99 → 84 seeds.
+- **Next task**: Add `source=sra` to `rule retrieve_and_bait` in `workflow/Snakefile`.
+  Use `fasterq-dump --stdout --split-spot | bbduk.sh in=stdin.fastq interleaved=t
+  minlength=100`. Test on ERR15383529 (already in samplesheet as source=sra).
+  Full implementation plan in `docs/session_handoff.md`.
 
 ## Key files
 - `endophynd_development_plan.md` — full design and roadmap

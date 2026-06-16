@@ -1,10 +1,10 @@
 # Session Handoff — Logan Unitig Discovery
 
-*Last updated: 2026-06-15. Append new entries at the bottom.*
+*Append-only record. Last updated: 2026-06-16. Each session appends a new section.*
 
 ---
 
-## What we learned in this session
+## Session 2026-06-15: ITSx → BLAST, gate thresholds, seed build
 
 ### 1. Logan unitigs in rDNA regions are ~33 bp (k-mer floor)
 
@@ -14,171 +14,279 @@ unitigs with median=33 bp, max=70 bp (n=226,490).
 **Why**: Logan uses a k=31 de Bruijn graph. The rDNA operon is tandemly repeated
 (50–200 copies) with slight inter-copy variants. Almost every position in ITS1/ITS2
 has a branch in the de Bruijn graph → assembler stops → unitig = one or two k-mers.
-The conserved 5.8S region should produce longer unitigs (all copies identical → no
-branches) but we haven't confirmed this yet.
 
-**Implication**: This is k-mer analysis, not read analysis. Individual unitigs carry
-the same information as a 33 bp k-mer. Classification tools designed for amplicons
-(q2-feature-classifier) will not work. k-mer-based tools (Kraken2, minimap2 with
-appropriate parameters, VSEARCH with short-read settings) are needed.
-
-**Action**: Switch `classify` rule from `q2-feature-classifier` to Kraken2 or
-minimap2 in Phase 2. Deferred; document the blocker here.
-
----
+**Action**: Switch classify rule from q2-feature-classifier to Kraken2 or minimap2
+in Phase 2. Deferred; document the blocker here.
 
 ### 2. ITSx → BLAST swap was the right call
 
-**Finding**: ITSx detected **0 sequences** from 226K Alternaria unitigs. BLAST
-detected **5,186** (558 coarse + 4,628 discard with our current thresholds).
+**Finding**: ITSx detected 0 sequences from 226K Alternaria unitigs. BLAST detected
+5,186 (558 coarse + 4,628 discard). ITSx requires SSU/LSU flanks — Logan unitigs
+have none.
 
-**Why**: ITSx uses HMM profiles to locate conserved SSU/LSU flanks surrounding ITS.
-Logan unitigs at 33 bp contain no flanks; they're from the interior of the ITS
-variable region. BLAST has no such requirement.
+**Current state**: `scripts/assign_locus_blast.py` + `resources/rdna_ref.fa`
+(78 sequences: 28 SSU, 40 ITS, 10 LSU).
 
-**Current state**: `scripts/assign_locus_blast.py` + `resources/rdna_ref.fa` (78
-sequences: 28 SSU, 40 ITS, 10 LSU, built from existing seeds via `--no-fetch`).
+### 3. Gate thresholds lowered for unitig reality (D18)
 
-**Improvement needed**: The Alternaria reference is only one sequence
-(`LC769425.1`, Alternaria *sp.* P26-R1-3). Real *A. alternata* ITS sequences
-differ enough in ITS1/ITS2 that alignment windows are only 61 bp. Run
-`scripts/build_rdna_ref.py --email your@email.com` (with NCBI access) to fetch
-actual *Alternaria alternata* ITS amplicons and expand the reference.
+ITS fine=50 bp, SSU/LSU fine=60 bp. Provisional until Phase 1.5 calibration.
 
----
+### 4. bbduk `minlength=50` may not filter FASTA stdin
 
-### 3. Gate thresholds must match the data (D18)
+Action next session: verify and add explicit post-bait filter if needed.
 
-**Finding**: With amplicon-calibrated thresholds (fine=100 bp), zero sequences
-passed as fine. Lowered to ITS fine=50 bp, SSU/LSU fine=60 bp.
+### 5. q2-feature-classifier is wrong for 33 bp unitigs
 
-**Status**: Provisional. Phase 1.5 calibration map will replace these with
-data-driven per-locus thresholds.
+**Candidates**: Kraken2 (k-mer, short-read native), minimap2, VSEARCH. Phase 2 task.
 
 ---
 
-### 4. bbduk `minlength=50` is not filtering as expected
+## Session 2026-06-16: Seed contamination, rDNA assembly root cause, SRA path
 
-**Finding**: The baited file contains sequences as short as 3 bp despite
-`minlength=50` in the Snakemake rule. The Logan FASTA piped via `zstdcat` to
-`bbduk.sh in=stdin.fa` may bypass length filtering.
+### 1. Seed file had 15 mRNA contaminants (FIXED — D19a)
 
-**Action (next session)**: Verify whether bbduk applies `minlength` to FASTA
-stdin input. If not, add an explicit post-bait filter:
+**Finding**: 15 of 99 seeds in `resources/rrna_seeds.fa` were mRNAs for 18S rRNA
+processing enzymes (methyltransferases, pseudouridine synthases, maturation proteins,
+biogenesis factors — all `XM_` or `NM_` NCBI prefixes). They appeared in the NCBI
+title query because their gene names contain "18S rRNA". They caused false-positive
+baiting: the most egregious produced a 975 bp methyltransferase CDS hit presented as
+rDNA.
+
+**Fix applied**: Added `is_rdna(header)` function to `scripts/build_rrna_seeds.py`
+that rejects `XM_`/`NM_` accession prefixes and headers containing enzyme-keyword
+terms (methyltransferase, pseudouridine, kinase, etc.). Cleaned seed file from
+99 → 84 sequences. Provenance updated.
+
+**Important**: The seed file was ALSO built from an older version of the script
+(had `5.8S_Ascomycota`/`5.8S_Basidiomycota` groups that fetched 0 sequences).
+The current script has the correct groups (`ITS_Ascomycota`, `ITS_Basidiomycota`,
+`ITS_Pleosporales`). When you have NCBI access, rebuild seeds:
 ```bash
-bbduk.sh ... | awk '...'   # or seqkit seq -m 50
+python scripts/build_rrna_seeds.py --email harte.singer@gmail.com
 ```
-Or switch to `minlen` (alternate parameter name) or `ml` (alias).
+
+### 2. ERR15383529 is confirmed Alternaria alternata WGS PE150 (NOT amplicon)
+
+**Confirmed by ENA metadata**: PRJEB93827 "WGS of Alternaria alternata from wild
+tomato", Illumina, strategy=WGS, source=GENOMIC, PAIRED, L=151. 4.7M read pairs,
+1.4G bases, 42× genome coverage of a ~33Mb genome.
+
+**BLAST confirmation**: SRA BLAST of a 568bp ITS sequence against ERR15383529 raw
+reads gives 100+ hits at 100% identity, 27% query coverage (= ~151bp per read).
+The user noted "it's all 5.8S in this search" — the reads landing at 100% identity
+are from the conserved 5.8S region; ITS1/ITS2 reads exist but at lower identity
+because of isolate-to-reference variation in the variable regions.
+
+### 3. Complete Logan file analysis: max rDNA unitig = 65bp (DEFINITIVE)
+
+**Method**: Downloaded the complete compressed Logan file for ERR15383529 (19.3MB
+compressed, 72MB decompressed). This IS the entire file — no partial sampling.
+Analyzed all 388,522 unitigs.
+
+**Result with clean seeds (k=31 exact)**:
+- Total baited: 1,902 / 388,522
+- Max length: 285bp (SSU 18S fragment, only 1 seed k-mer match — possibly
+  coincidental)
+- ITS junction max: 65bp
+- 1,873 sequences are 31bp (single k-mer matches, noise)
+
+**What the 61-65bp hits actually are**: These are the conserved primer-flanking
+bases at the ITS4 (ITS2→28S junction) and ITS3 (interior of ITS2) primer sites.
+Confirmed by primer sequence matching:
+- `ERR15383529_283340`: contains ITS3 primer → real ITS2 sequence, 61bp
+- `ERR15383529_302300`: contains ITS4 primer and LSU start → real ITS2→28S, 61bp
+- `ERR15383529_340004`: contains 18S→ITS1 junction → real, 61bp
+(These are saved in `tests/fixtures/ERR15383529_baited_logan.fa`)
+
+### 4. Root cause confirmed: tandem repeat assembly collapse (D20)
+
+**Control experiment**: Searched same 388K unitigs with published phylogenetic marker
+primer sequences (k=17 probe):
+
+| Marker | Max unitig | Notes |
+|--------|------------|-------|
+| RPB2   | **3,389bp** | Long contig, single-copy gene ✓ |
+| RPB1   | **1,991bp** | Long contig, single-copy gene ✓ |
+| TEF1a  | **483bp**   | Assembled, single-copy gene ✓ |
+| ITS    | **65bp**    | Tandem repeat collapse ✗ |
+
+**Conclusion**: Logan assembly works correctly. The failure is 100% specific to the
+rDNA tandem repeat array. The fungal rDNA operon has 10–80 identical copies in
+tandem (~7kb each). PE150 reads cannot span repeat unit boundaries. k-mers from all
+identical copies collapse to the same node in the de Bruijn graph, forming
+unresolvable cyclic paths. Minia can only produce 65bp tip unitigs at the
+conserved/unique boundary (primer flanking sites).
+
+**This means Logan IS useful for**:
+- Finding Alternaria in a plant genome (TEF1a, RPB2, RPB1 bait cleanly)
+- WGS accessions where you want single-copy locus recovery
+- Any non-tandem-repeat marker
+- The planned "scan many plant genomes with a whole fungal genome query" approach
+
+**Sequences saved**: `tests/fixtures/ERR15383529_protein_coding_control.fa`
+(RPB2 3389bp, RPB1 1991bp, TEF1a 483bp). BLAST these locally to confirm identity.
+
+### 5. Samplesheet updated
+
+`ERR15383529` reclassified from `source=logan` to `source=sra` with a note
+explaining why. The Logan path for this accession gives only 65bp rDNA fragments.
+
+### 6. A note on the k=15 false positives
+
+When searching with k=15 (very short k-mer), the Alternaria seed sequences appeared
+to match long unitigs (2287bp, 2274bp, etc.) but these had 0 matches at k=21 and
+were confirmed as non-rDNA (genomic protein-coding sequence). 15-mers are too short
+for specific baiting of rDNA; k=31 with hdist=1 (the bbduk default) is appropriate.
 
 ---
 
-### 5. q2-feature-classifier is the wrong classifier for unitig data
+## What to build next: SRA raw-read streaming path (Phase 3, now elevated)
 
-**Finding**: q2-feature-classifier is trained on and designed for amplicon-length
-sequences (300–500 bp). At 33 bp, it will either fail or give meaningless output.
+### Why this is urgent
 
-**Candidates to replace it**:
-- **Kraken2**: k-mer database, excellent at short fragments, fast
-- **minimap2**: `--cs -ax sr` with a short-read preset; can align 30 bp+ to a
-  reference and report taxonomy from hit sequence name
-- **VSEARCH `--usearch_global`**: works at short lengths if `--minseqlength` and
-  `--id` are tuned (id=0.80 for short reads)
+For WGS accessions, raw PE150 reads individually span 150bp of ITS sequence. A read
+starting in the 18S/5.8S conserved region will extend 150bp into ITS1/ITS2. A
+bbduk-baited PE150 read is therefore a usable ITS fragment for classification,
+even without merging. Merged pairs (fastp/BBMerge) give 200-300bp of ITS.
 
-**Action**: Phase 2 task. Update `classify` rule. Kraken2 is the strongest
-candidate because it's purpose-built for k-mer-level taxonomy.
+### Implementation plan for `rule retrieve_and_bait` (source=sra)
 
----
+The rule already handles `source=local` and `source=logan`. Add `source=sra`:
 
-## What to test next
-
-### A. Test on a different Logan accession
-
-Goal: determine if the 33 bp unitig finding is universal across Logan or specific
-to Alternaria/fungi.
-
-Good targets:
-- Another Ascomycete with known ITS (e.g., Fusarium, Aspergillus) — compare
-  unitig length distribution
-- A Basidiomycete (e.g., Agaricus bisporus) — ITS typically longer
-- A well-characterized metagenome where expected taxa are known
-
-Add to `workflow/config/samplesheet.csv` and re-run.
-
-### B. Cache sequences for manual inspection
-
-The cleanup rule deletes hot-cache files after classification. To keep them:
-
-```yaml
-# workflow/config/params.yml
-delete_transient_after_classify: false
+```python
+# workflow/config/samplesheet.csv new fields (already schema-compatible):
+# source=sra, input_type=reads
 ```
 
-Then after a run, the baited.fa and gate_report.tsv survive in:
-```
-~/endophynd_cache/hot/baited/<sample>.baited.fa
-~/endophynd_cache/hot/gated/<sample>.gated.fa
-~/endophynd_cache/hot/gated/<sample>.gate_report.tsv
-```
+**Shell command** (streaming, no whole-file disk landing):
 
-To pull a random sample of sequences with their BLAST locus labels:
 ```bash
-# Join gate_report to baited sequences for manual inspection
-python3 - <<'EOF'
-import csv, random
-report = {r['read_id']: r for r in csv.DictReader(
-    open('~/endophynd_cache/hot/gated/ERR15383529.gate_report.tsv'), delimiter='\t')}
-# sample 50 ITS sequences that passed gate
-its_passing = [k for k,v in report.items()
-               if v['locus']=='ITS' and v['gate_decision'] in ('fine','coarse')]
-for seq_id in random.sample(its_passing, min(50, len(its_passing))):
-    r = report[seq_id]
-    print(f"{seq_id}\t{r['locus']}\t{r['informative_bp']}bp\t{r['gate_decision']}")
-EOF
+# Option A: fasterq-dump (in retrieve_bait.yml conda env, sra-tools>=3.0)
+# Writes interleaved PE to stdout, pipes directly to bbduk
+fasterq-dump \
+    --stdout \
+    --split-spot \          # interleave R1/R2
+    --threads {threads} \
+    {params.acc} \
+| bbduk.sh \
+    in=stdin.fastq \
+    interleaved=t \         # bbduk understands interleaved PE
+    ref={params.seed_ref} \
+    outm={output.baited} \
+    stats={output.bait_stats} \
+    k={params.k} \
+    hdist={params.hdist} \
+    minlength=100 \         # raw reads: use 100bp, not 50bp
+    threads={threads} \
+    2>> {log}
 ```
 
-### C. Expand the BLAST reference
+**Option B (if fasterq-dump streaming is unreliable)**: temp files, merged:
 
-Run from a machine with NCBI access:
 ```bash
-# Rebuild seeds with ITS amplicons (new groups: ITS_Ascomycota, ITS_Basidiomycota,
-# ITS_Pleosporales — replaces the empty 5.8S groups)
-python scripts/build_rrna_seeds.py --email your@email.com
-
-# Rebuild BLAST reference with NCBI ITS amplicons for major lineages
-python scripts/build_rdna_ref.py --email your@email.com
+# Write PE to temp, merge, bait
+TMPDIR=$(mktemp -d)
+fasterq-dump --split-files --outdir $TMPDIR --threads {threads} {params.acc}
+bbmerge.sh \
+    in1=$TMPDIR/{params.acc}_1.fastq \
+    in2=$TMPDIR/{params.acc}_2.fastq \
+    out=$TMPDIR/merged.fq \
+    outu=$TMPDIR/unmerged.fq \
+    threads={threads}
+cat $TMPDIR/merged.fq $TMPDIR/unmerged.fq | \
+bbduk.sh in=stdin.fastq ref={params.seed_ref} outm={output.baited} ...
+rm -rf $TMPDIR
 ```
 
-Commit the new `resources/rrna_seeds.fa` and `resources/rdna_ref.fa`.
+**Recommended approach**: Option A (fasterq-dump --stdout --split-spot) because:
+- No disk footprint for a 42× WGS run (~5GB raw fastq)
+- Direct pipe to bbduk
+- fasterq-dump ≥3.0 supports true stdout streaming
+
+**minlength for raw reads**: Use 100bp (not 50bp used for Logan unitigs). A 100bp
+raw read is much more informative than a 50bp unitig and worth keeping.
+
+**After baiting**: The downstream steps (annotate_and_gate, dereplicate, classify)
+work on the baited.fa output — no changes needed there. The 100-150bp baited reads
+will pass the ITS fine threshold (50bp) easily and get classified properly.
+
+### Conda env change needed
+
+`envs/retrieve_bait.yml` already has `sra-tools>=3.0` — no change needed.
+fasterq-dump is in that package.
+
+### Test accession
+
+Use `ERR15383529` (already in samplesheet as `source=sra`). Expected results:
+- Baited reads: hundreds to thousands (42× WGS, rDNA ~1% of genome)
+- Length distribution: peak at 100-151bp
+- BLAST these against UNITE/SILVA to confirm fungal ITS identity
+- Many reads will span ITS1, 5.8S, ITS2 independently
+
+### Samplesheet entry (already updated)
+
+```csv
+ERR15383529,sra,ERR15383529,illumina,reads,...
+```
 
 ---
 
-## Open questions
+## Open questions (updated)
 
-1. **Why is 5.8S not producing longer alignments?** 5.8S is ~155 bp and fully
-   conserved. If a unitig covered the 5.8S region it should give a 155 bp
-   alignment (fine). We don't see this. Is 5.8S simply not being baited (seed
-   gaps), or are the 5.8S unitigs > 70 bp and bypassing the minlength bug?
+1. **Why does the conserved 5.8S not produce longer Logan unitigs?** The 5.8S
+   (~155bp) is nearly identical across all rDNA copies. At k=31, the 5.8S body
+   should form a single long unitig (155bp). We see only 65bp there. Possible
+   explanation: Logan uses k=63 (not k=31) → minimum unitig = 64bp, and the 5.8S→ITS
+   junctions still collapse at k=63 because even 1-2bp of inter-copy variation in
+   the first/last 63bp of 5.8S is enough to create a branch. Worth investigating
+   with the full Alternaria alternata reference 5.8S sequence.
 
-2. **What fraction of the 1,884 bbduk "Contaminants" (high-k-mer-density hits)
-   pass BLAST?** These are more likely true rDNA sequences. We'd expect longer
-   alignments from them than from the 224K single-k-mer hits.
+2. **What fraction of the 1,902 baited Logan unitigs are genuine vs noise?** The
+   1,873 single k-mer (31bp) hits are mostly noise. The 29 hits >50bp are genuine
+   (primer-confirmed). The 285bp hit is uncertain (1 seed k-mer match). With clean
+   seeds + bbduk hdist=1, real recall from Logan WGS rDNA is ~29 useful sequences.
 
-3. **Can the `outm` rate (0.83% = 1884/226428) be improved by tuning bbduk
-   parameters?** Lower `hdist` (0 instead of 1) would reduce false positives.
-   Or use `outm` with a HIGHER k (k=51, k=71) to require longer matches.
+3. **Will the "whole fungal genome as query" approach for plant genomes work?**
+   The user believes this is feasible and has ideas for it. This is the long-term
+   Logan-based discovery mode. Protein-coding gene recovery (RPB2 3389bp, etc.)
+   strongly supports it — those unitigs are exactly the kind of thing you'd find
+   when scanning a plant genome Logan file for fungal contamination/endophytes.
+
+4. **How to handle SRA accessions with very large raw data?** The fasterq-dump
+   approach streams data without landing full files. But 42× WGS of a 33Mb genome
+   = ~1.4GB of reads streaming through the pipe. bbduk is fast enough. The hot
+   cache only receives the tiny baited output (~1-10MB). This is within budget.
 
 ---
 
-## Files changed this session
+## Files changed this session (2026-06-16)
 
 | File | Change |
 |------|--------|
-| `scripts/assign_locus_blast.py` | New — BLAST-based locus assignment (replaces ITSx) |
-| `scripts/build_rdna_ref.py` | New — builds per-locus BLAST reference from seeds |
-| `scripts/build_rrna_seeds.py` | Fix — 5.8S groups → ITS amplicon groups |
-| `resources/rdna_ref.fa` | New — 78-sequence BLAST reference (28 SSU, 40 ITS, 10 LSU) |
-| `envs/annotate.yml` | Add `blast>=2.14` |
-| `workflow/Snakefile` | Replace ITSx with BLAST in `annotate_and_gate`; add rdna_ref guard |
-| `workflow/config/params.yml` | Add ITS gate threshold; lower all thresholds for unitig reality |
-| `docs/decisions.md` | Add D17 (BLAST over ITSx) and D18 (gate thresholds) |
-| `tests/test_rrna_seeds.py` | Fix IUPAC alphabet test; fix provenance key assertion |
+| `resources/rrna_seeds.fa` | Removed 15 mRNA contaminants; 99 → 84 sequences |
+| `resources/rrna_seeds_provenance.yml` | Updated with cleaning record |
+| `scripts/build_rrna_seeds.py` | Added `is_rdna()` filter; added `_MRNA_KEYWORDS` regex |
+| `workflow/config/samplesheet.csv` | ERR15383529: source=logan → source=sra with notes |
+| `docs/decisions.md` | Added D19 (seed contamination + ERR15383529 reclassification) and D20 (tandem repeat control experiment) |
+| `tests/fixtures/ERR15383529_baited_logan.fa` | Complete rDNA signal from Logan ERR15383529 (29 sequences >50bp) |
+| `tests/fixtures/ERR15383529_protein_coding_control.fa` | RPB2/RPB1/TEF1a unitigs from Logan ERR15383529 |
+
+---
+
+## Git state
+
+Branch: `claude/vigilant-maxwell-vdc9wd`
+Last commit: `5836320` — "Add protein-coding control; confirm Logan rDNA failure is
+tandem-repeat collapse"
+All changes committed and pushed.
+
+## How to start the next session
+
+Tell Claude Code:
+> "We're building the SRA raw-read streaming path for endophynd. Read
+> `docs/session_handoff.md` for context. The task is to add `source=sra` handling
+> to `rule retrieve_and_bait` in `workflow/Snakefile`, using `fasterq-dump
+> --stdout --split-spot` piped to `bbduk.sh` with `minlength=100`. Test accession
+> is `ERR15383529` (42× Alternaria alternata WGS PE151, already in samplesheet).
+> The conda env already has `sra-tools>=3.0`. See the implementation plan in
+> `docs/session_handoff.md` under 'What to build next'."
