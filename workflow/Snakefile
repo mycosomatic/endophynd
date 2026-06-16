@@ -99,6 +99,22 @@ if _SEED_IS_PLACEHOLDER:
 
 
 # ---------------------------------------------------------------------------
+# BLAST reference guard
+# rdna_ref.fa is required for BLAST-based locus assignment.
+# Warn at DAG-build time so the user sees it before any rule executes.
+# ---------------------------------------------------------------------------
+
+_RDNA_REF = Path("resources/rdna_ref.fa")
+if not _RDNA_REF.exists():
+    sys.stderr.write(
+        "\n[WARNING] resources/rdna_ref.fa not found.\n"
+        "  BLAST locus assignment (annotate_and_gate) will fail.\n"
+        "  Build it first:\n"
+        "    python scripts/build_rdna_ref.py --email your@email.com\n\n"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Final targets
 # ---------------------------------------------------------------------------
 
@@ -273,8 +289,6 @@ rule annotate_and_gate:
     output:
         gated=HOT / "gated" / "{sample}.gated.fa",
         gate_report=HOT / "gated" / "{sample}.gate_report.tsv",
-    params:
-        itsx_prefix=lambda wildcards: str(HOT / "gated" / f"{wildcards.sample}.itsx"),
     threads: config["itsx"]["cpu"]
     log:
         COLD / "logs" / "gate" / "{sample}.log",
@@ -283,29 +297,17 @@ rule annotate_and_gate:
     shell:
         """
         mkdir -p $(dirname {output.gated})
+        mkdir -p $(dirname {log})
 
         NBAITED=$(grep -c '^>' {input.baited} 2>/dev/null || echo 0)
-        echo "[gate] {wildcards.sample}: running ITSx on $NBAITED baited sequences" > {log}
+        echo "[gate] {wildcards.sample}: BLAST locus assignment on $NBAITED sequences" > {log}
 
-        # Annotate locus boundaries (ITS1, 5.8S, ITS2, LSU, SSU).
-        # --organisms F: Fungi HMM profiles only — faster than 'all'.
-        # --save_regions all: write per-locus FASTAs for Phase 2 classification.
-        # --partial 50: keep sequences covering ≥50% of any ITS region.
-        ITSx -i {input.baited} \
-             -o {params.itsx_prefix} \
-             --cpu {threads} \
-             --multi_thread T \
-             --organisms F \
-             --save_regions all \
-             --partial 50 \
-             --minlen 50 \
-             --heuristics T \
-             2>> {log}
-
-        # Parse positions.txt, apply gate thresholds, write gated FASTA + report.
-        python scripts/parse_itsx.py \
+        # Primary: BLAST-based locus assignment.
+        # Works for short Logan unitigs (~200 bp) that lack the conserved SSU/LSU
+        # flanks ITSx's HMMs need.  Reference: resources/rdna_ref.fa (per-locus).
+        python scripts/assign_locus_blast.py \
             --baited {input.baited} \
-            --itsx-prefix {params.itsx_prefix} \
+            --rdna-ref resources/rdna_ref.fa \
             --params workflow/config/params.yml \
             --gate-report {output.gate_report} \
             --gated-out {output.gated} \
@@ -313,6 +315,18 @@ rule annotate_and_gate:
 
         NPASSED=$(grep -c '^>' {output.gated} 2>/dev/null || echo 0)
         echo "[gate] {wildcards.sample}: $NPASSED sequences passed gate" >> {log}
+
+        # ITSx (future): run for amplicon-length reads that DO span SSU/LSU flanks.
+        # ITSx gives finer ITS1-vs-ITS2 discrimination and per-region FASTAs for
+        # Phase 2 classification.  Uncomment when processing SRA amplicon libraries.
+        # ITSX_PREFIX={HOT}/gated/{wildcards.sample}.itsx
+        # ITSx -i {input.baited} -o $ITSX_PREFIX --cpu {threads} \\
+        #      --multi_thread T --organisms F --save_regions all \\
+        #      --partial 50 --minlen 50 --heuristics T 2>> {log}
+        # python scripts/parse_itsx.py \\
+        #     --baited {input.baited} --itsx-prefix $ITSX_PREFIX \\
+        #     --params workflow/config/params.yml \\
+        #     --gate-report {output.gate_report} --gated-out {output.gated} 2>> {log}
         """
 
 
