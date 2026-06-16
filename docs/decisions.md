@@ -136,3 +136,9 @@
 - Implication: Logan IS the right tool for (a) finding Alternaria in a plant genome (TEF1a, RPB2, RPB1 will bait), (b) non-rDNA discovery in WGS accessions, (c) metagenomic samples where target is not multi-copy. ITS requires raw reads from SRA.
 - Control sequences saved to tests/fixtures/ERR15383529_protein_coding_control.fa.
 - Status: Accepted. Phase 3 SRA path elevated to next milestone; Logan path unchanged for protein-coding.
+
+### 2026-06-16 — D21: Implement source=sra in triage and retrieve_and_bait rules
+- Decision: Add `source=sra` branch to both rules using `fasterq-dump --stdout --split-spot --skip-technical --threads N | bbduk.sh in=stdin.fq`. Set `minlength=100` (was 50) as the post-bait length floor.
+- Why: Follows directly from D19/D20. `fasterq-dump --stdout` streams FASTQ without landing the full file on disk; `--split-spot` interleaves PE reads so bbduk sees each read independently. `minlength=100` is a safe floor for PE151 reads; the previous 50 was ineffective for Logan FASTA stdin anyway (handoff note #4, no regression). `bbduk.sh in=stdin.fq` (not `stdin.fa`) signals FASTQ input; output is still `.baited.fa` (bbduk converts to FASTA by output extension).
+- Alternatives considered: (a) `fastq-dump --stdout --split-spot` — true streaming but slower; fasterq-dump is the current NCBI recommendation; (b) download full FASTQ first then pipe — violates D12 streaming constraint.
+- Status: Accepted.
