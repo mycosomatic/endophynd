@@ -288,6 +288,7 @@ rule retrieve_and_bait:
                     --threads {threads} \
                 | bbduk.sh \
                     in=stdin.fq \
+                    int=t \
                     ref={params.seed_ref} \
                     outm={output.baited} \
                     stats={output.bait_stats} \

@@ -58,7 +58,7 @@ fasterq-dump "$ACC" \
     2>/dev/null \
     > "$PEEK"
 
-echo "First 8 lines of streamed output (should alternate /1 and /2 reads):"
+echo "First 8 lines of streamed output (pairs interleaved: /1 then /2 per spot):"
 head -8 "$PEEK"
 echo ""
 
@@ -71,6 +71,7 @@ fasterq-dump "$ACC" \
     2>/dev/null \
   | bbduk.sh \
       in=stdin.fq \
+      int=t \
       ref="$SEEDS" \
       outm="$OUT_SEEDS" \
       stats="$STATS_SEEDS" \
@@ -89,6 +90,7 @@ fasterq-dump "$ACC" \
     2>/dev/null \
   | bbduk.sh \
       in=stdin.fq \
+      int=t \
       ref="$PRIMERS" \
       outm="$OUT_PRIMERS" \
       stats="$STATS_PRIMERS" \
