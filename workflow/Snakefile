@@ -99,6 +99,22 @@ if _SEED_IS_PLACEHOLDER:
 
 
 # ---------------------------------------------------------------------------
+# BLAST reference guard
+# rdna_ref.fa is required for BLAST-based locus assignment.
+# Warn at DAG-build time so the user sees it before any rule executes.
+# ---------------------------------------------------------------------------
+
+_RDNA_REF = Path("resources/rdna_ref.fa")
+if not _RDNA_REF.exists():
+    sys.stderr.write(
+        "\n[WARNING] resources/rdna_ref.fa not found.\n"
+        "  BLAST locus assignment (annotate_and_gate) will fail.\n"
+        "  Build it first:\n"
+        "    python scripts/build_rdna_ref.py --email your@email.com\n\n"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Final targets
 # ---------------------------------------------------------------------------
 
@@ -138,13 +154,13 @@ rule triage:
         ACC="{params.acc}"
 
         if [ "$SOURCE" = "logan" ]; then
-            # Basic accession format check (GCA_XXXXXXXXXX or similar).
-            # Does NOT download; size check from parquet deferred to Phase 1.5.
-            if echo "$ACC" | grep -qE '^(GCA|GCF)_[0-9]{{9}}\.[0-9]+$'; then
+            # Basic accession format check: SRR/ERR/DRR run accessions.
+            # Does NOT download; size check from logan-pub/stat parquet deferred to Phase 1.5.
+            if echo "$ACC" | grep -qE '^(SRR|ERR|DRR)[0-9]+$'; then
                 echo "[triage] {wildcards.sample}: Logan $ACC format OK" | tee {log}
             else
                 echo "[triage][WARN] {wildcards.sample}: '$ACC' doesn't look like a" \
-                     "standard GCA/GCF accession — proceeding anyway" | tee {log}
+                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee {log}
             fi
 
         elif [ "$SOURCE" = "local" ]; then
@@ -273,6 +289,7 @@ rule annotate_and_gate:
     output:
         gated=HOT / "gated" / "{sample}.gated.fa",
         gate_report=HOT / "gated" / "{sample}.gate_report.tsv",
+    threads: config["itsx"]["cpu"]
     log:
         COLD / "logs" / "gate" / "{sample}.log",
     conda:
@@ -280,10 +297,36 @@ rule annotate_and_gate:
     shell:
         """
         mkdir -p $(dirname {output.gated})
-        # Phase 0 stub: pass everything through.
-        cp {input.baited} {output.gated}
-        printf "read_id\tlocus\tinformative_bp\tgate_decision\n" > {output.gate_report}
-        echo "[gate] {wildcards.sample}: stub (all reads passed as fine)" > {log}
+        mkdir -p $(dirname {log})
+
+        NBAITED=$(grep -c '^>' {input.baited} 2>/dev/null || echo 0)
+        echo "[gate] {wildcards.sample}: BLAST locus assignment on $NBAITED sequences" > {log}
+
+        # Primary: BLAST-based locus assignment.
+        # Works for short Logan unitigs (~200 bp) that lack the conserved SSU/LSU
+        # flanks ITSx's HMMs need.  Reference: resources/rdna_ref.fa (per-locus).
+        python scripts/assign_locus_blast.py \
+            --baited {input.baited} \
+            --rdna-ref resources/rdna_ref.fa \
+            --params workflow/config/params.yml \
+            --gate-report {output.gate_report} \
+            --gated-out {output.gated} \
+            2>> {log}
+
+        NPASSED=$(grep -c '^>' {output.gated} 2>/dev/null || echo 0)
+        echo "[gate] {wildcards.sample}: $NPASSED sequences passed gate" >> {log}
+
+        # ITSx (future): run for amplicon-length reads that DO span SSU/LSU flanks.
+        # ITSx gives finer ITS1-vs-ITS2 discrimination and per-region FASTAs for
+        # Phase 2 classification.  Uncomment when processing SRA amplicon libraries.
+        # ITSX_PREFIX={HOT}/gated/{wildcards.sample}.itsx
+        # ITSx -i {input.baited} -o $ITSX_PREFIX --cpu {threads} \\
+        #      --multi_thread T --organisms F --save_regions all \\
+        #      --partial 50 --minlen 50 --heuristics T 2>> {log}
+        # python scripts/parse_itsx.py \\
+        #     --baited {input.baited} --itsx-prefix $ITSX_PREFIX \\
+        #     --params workflow/config/params.yml \\
+        #     --gate-report {output.gate_report} --gated-out {output.gated} 2>> {log}
         """
 
 
