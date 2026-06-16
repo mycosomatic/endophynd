@@ -128,3 +128,11 @@
 - **OPEN — targeted-search aligner:** minimap2 (fast, near-identity; verified Logan idiom) vs blastn with query-as-DB and reads streamed as the query (sensitive to divergence) vs mmseqs2 (middle ground). Decide by testing recall on the mock community at known query-to-target distances. (See D05.)
 - **OPEN — phase ordering:** calibration+mock (Phase 1.5) before the full classifier/reporting (Phase 2) vs a rough end-to-end report first. Non-blocking.
 - **OPEN — mock background:** clean reference plant genome for tuning vs a real GBI accession for realism — current plan uses clean first, then dirty as a check.
+
+### 2026-06-16 — D20: Logan rDNA failure confirmed as tandem-repeat assembly collapse; Logan vindicated for single-copy genes
+- Decision: Keep Logan as primary source for WGS accessions; add SRA raw-read path for ITS recovery. Do NOT abandon Logan.
+- Evidence: Protein-coding control experiment on ERR15383529 (Alternaria alternata WGS PE150). Single-copy genes assemble into long unitigs from the same Logan file where ITS gives only 65bp: RPB2 → 3389bp, RPB1 → 1991bp, TEF1a → 483bp. ITS → 65bp max. The failure is 100% specific to the rDNA tandem repeat array, not Logan, not the baiting strategy, not the seeds.
+- Why tandem repeats fail: The fungal rDNA operon occurs in 10–80 tandem copies per genome (~7kb each). PE150 reads cannot span repeat unit boundaries. In the De Bruijn graph, all identical k-mers from multiple copies collapse to a single node and form cyclic paths Minia cannot resolve. The only escape is at the repeat/unique junction — producing 65bp tip unitigs at the conserved primer-flanking sites.
+- Implication: Logan IS the right tool for (a) finding Alternaria in a plant genome (TEF1a, RPB2, RPB1 will bait), (b) non-rDNA discovery in WGS accessions, (c) metagenomic samples where target is not multi-copy. ITS requires raw reads from SRA.
+- Control sequences saved to tests/fixtures/ERR15383529_protein_coding_control.fa.
+- Status: Accepted. Phase 3 SRA path elevated to next milestone; Logan path unchanged for protein-coding.
