@@ -186,6 +186,29 @@ def iter_fasta(text: str) -> Iterator[tuple[str, str]]:
         yield header, "".join(seq_parts)
 
 
+_MRNA_KEYWORDS = re.compile(
+    r"\b(methyltransferase|pseudouridine|maturation.protein|mRNA|kinase"
+    r"|synthase|synthetase|helicase|ribosome.biogenesis|processin[ag]"
+    r"|assembly.factor|chaperone)\b",
+    re.IGNORECASE,
+)
+
+def is_rdna(header: str) -> bool:
+    """Return True if this looks like genuine rDNA rather than a protein-coding gene.
+
+    NCBI title searches for '18S ribosomal RNA' also return mRNAs for enzymes
+    that process the 18S (e.g. methyltransferases, pseudouridine synthases).
+    These must be excluded so bbduk doesn't bait protein-coding reads.
+    """
+    # XM_ prefix = RefSeq mRNA; NM_ = curated mRNA; reject both
+    acc = header.split()[0]
+    if acc.startswith(("XM_", "NM_")):
+        return False
+    if _MRNA_KEYWORDS.search(header):
+        return False
+    return True
+
+
 def deduplicate(records: list[tuple[str, str]]) -> list[tuple[str, str]]:
     """Remove exact-duplicate sequences (same accession from multiple queries)."""
     seen_accs, out = set(), []
@@ -240,7 +263,7 @@ def build_seeds(email: str, n_per_group: int, out_fa: Path, out_prov: Path) -> N
             fasta_text = entrez_fetch_fasta(uids, email)
             time.sleep(0.35)
 
-            records = list(iter_fasta(fasta_text))
+            records = [(h, s) for h, s in iter_fasta(fasta_text) if is_rdna(h)]
             all_records.extend(records)
             accs = [h.split()[0] for h, _ in records]
             print(f"    → {len(records)} sequences: {', '.join(accs[:3])}{'…' if len(accs) > 3 else ''}")

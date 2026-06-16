@@ -194,5 +194,11 @@ ncbi_entrez_base: https://eutils.ncbi.nlm.nih.gov/entrez/eutils
 note: Seed sequences fetched from NCBI for bbduk k-mer baiting. Covers SSU/18S, 5.8S,
   and LSU/28S across major fungal lineages. Replace this file with a larger phylogenetically
   balanced set (e.g. from SILVA) for production runs.
-n_sequences_written: 99
-output: /home/harte/endophynd/endophynd/resources/rrna_seeds.fa
+n_sequences_written: 84
+n_sequences_original: 99
+n_removed_mrna_contaminants: 15
+cleaned: '2026-06-16T00:00:00Z'
+cleaning_note: Removed 15 XM_/NM_ mRNA sequences (18S rRNA processing enzymes —
+  methyltransferases, pseudouridine synthases, maturation proteins) that slipped
+  through the NCBI title query. build_rrna_seeds.py now filters these via is_rdna().
+output: /home/user/endophynd/resources/rrna_seeds.fa
