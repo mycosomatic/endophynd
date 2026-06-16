@@ -1,8 +1,10 @@
 # Endophynd — Development Plan
 
-*A toolkit for recovering taxonomically relevant fungal sequence (ITS, LSU, SSU) from Logan and SRA data, classifying it **at the read level** against multiple reference databases, and reporting it in the style of metabarcoding studies.*
+*Primary goal: **discover fungal endophytes in plant WGS genome SRA data.** Given a plant (or fungal) genome SRA accession or Logan unitig set, find which fungal taxa are present — recovering their rDNA (ITS, LSU, SSU) at the low coverage fractions typical of incidentally sequenced symbionts. Classification is **read-level**, against multiple reference databases, with output in metabarcoding-report style so results integrate with the lab's existing QIIME2 workflows.*
 
-*Revision 3 — local-first on modest hardware; cloud is a design target, not a near-term build. Read-level classification is the spine; assembly is reserved for the mock-community benchmark and deferred experiments.*
+*Secondary capability: the same streaming pipeline supports metabarcoding amplicon SRA archives (ITS amplicon libraries) as a future extension, without changing the WGS core.*
+
+*Revision 4 — local-first on modest hardware; cloud is a design target, not a near-term build.*
 
 ---
 
@@ -26,12 +28,27 @@ This is a serious research project intended for publication; correctness and hon
 
 ## 1. Objectives
 
-Two core capabilities, one shared backend:
+### Primary use case — endophyte discovery in plant WGS
 
-- **A. Discovery (blind) mode** — given a dataset (a Logan accession, an SRA run, or a local pile of reads), recover all fungal rDNA sequence present and classify it. Output: *what taxa are in this plant*.
-- **B. Targeted mode** — given a query sequence (or batch), find where it occurs across Logan / SRA. Output: *which plants (or datasets) contain this taxon*.
+Given a plant genome SRA accession (e.g. a GBI BioProject), find which fungal endophytes are present. The sequencing library was not designed for mycology: fungal rDNA makes up a tiny fraction of a whole-genome shotgun run. The pipeline must:
 
-Both are two slices of the same **feature table** (taxa × samples). Build the table once; answer either question by slicing it; answer new targeted queries by classifying the query and matching it against stored representative sequences.
+1. **Bait** the small rDNA-overlapping fraction from a streaming raw-read or Logan unitig source.
+2. **Filter out host plant rDNA** (18S/28S) — the most abundant baited signal and taxonomically useless for endophyte discovery.
+3. **Classify each remaining read individually** and tally reads per taxon. Dereplication (the amplicon-metabarcoding idiom) is **not appropriate** here: endophyte rDNA may be present at only 1–10× coverage; there will rarely be enough identical reads to collapse meaningfully, and collapsing would destroy the absolute-count signal.
+4. **Report** what fungal taxa are present and at what read-level abundance.
+
+Raw SRA reads (`source=sra`) are required for ITS recovery: Logan's de Bruijn assembly collapses rDNA tandem repeats to ~33 bp unitigs, losing variable-region information needed for species-level classification (see D20). Logan unitigs remain valuable for protein-coding marker recovery and as a fast pre-screen.
+
+### Two core query modes, one shared backend
+
+- **A. Discovery (blind) mode** — given a dataset, recover all fungal rDNA present and classify it. Output: *what endophytic taxa are in this plant*.
+- **B. Targeted mode** — given a query sequence (or panel, e.g. a cultured-endophyte barcode), find where it occurs across Logan / SRA. Output: *which plant accessions contain this taxon*.
+
+Both are two slices of the same **taxa × samples table**. Build it once; answer either question by slicing it.
+
+### Secondary capability — metabarcoding amplicon SRA archives
+
+ITS amplicon SRA libraries (where every read is an ITS amplicon, not a random genomic fragment) are a planned extension. These use the same bait → classify core but add a fastp PE merge step to reconstruct full-length amplicons before annotation. This path is off by default; it activates via `input_type=amplicon` in the samplesheet. Do not design the WGS pipeline around amplicon assumptions.
 
 Downstream: metabarcoding-style **reports and graphs**. **Alpha/beta diversity is included as an exploratory ("toy") feature** — implemented for novelty and future methodological comparison, but explicitly *not* quantitatively reliable (see Section 7).
 
