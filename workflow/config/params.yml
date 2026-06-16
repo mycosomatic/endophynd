@@ -26,25 +26,27 @@ gate:
   calibration_map: "workflow/config/calibration_map.yml"
   # Fallback thresholds used until the calibration map is built (Phase 1.5).
   # These are guesses; DO NOT use for publication.
+  # Calibrated for Logan unitigs (~30-65 bp rDNA windows): thresholds much
+  # lower than amplicon thresholds.  See docs/decisions.md for rationale.
   fallback_thresholds:
     ITS:                  # BLAST assigns ITS1+5.8S+ITS2 together as "ITS"
-      coarse_min_bp: 50
-      fine_min_bp: 100
+      coarse_min_bp: 30   # single k-mer hit; kingdom/phylum only
+      fine_min_bp: 50     # 50 bp ITS → genus-level with UNITE
     ITS1:
-      coarse_min_bp: 50
-      fine_min_bp: 100
+      coarse_min_bp: 30
+      fine_min_bp: 50
     ITS2:
-      coarse_min_bp: 50
-      fine_min_bp: 100
+      coarse_min_bp: 30
+      fine_min_bp: 50
     "5.8S":
       coarse_min_bp: 0   # conserved only — classify coarsely regardless
       fine_min_bp: 0
     LSU:
-      coarse_min_bp: 100
-      fine_min_bp: 200
+      coarse_min_bp: 40
+      fine_min_bp: 60
     SSU:
-      coarse_min_bp: 100
-      fine_min_bp: 200
+      coarse_min_bp: 40
+      fine_min_bp: 60
 
 # --- Dereplication (vsearch) ---
 derep:
