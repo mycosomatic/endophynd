@@ -30,14 +30,20 @@ This is a serious research project intended for publication; correctness and hon
 
 ### Primary use case — endophyte discovery in plant WGS
 
-Given a plant genome SRA accession (e.g. a GBI BioProject), find which fungal endophytes are present. The sequencing library was not designed for mycology: fungal rDNA makes up a tiny fraction of a whole-genome shotgun run. The pipeline must:
+Given a plant genome SRA accession (e.g. a GBI BioProject), find which fungal endophytes are present. The sequencing library was not designed for mycology: fungal markers make up a tiny fraction of a whole-genome shotgun run. The pipeline operates two complementary recovery paths and merges them into one feature table:
 
-1. **Bait** the small rDNA-overlapping fraction from a streaming raw-read or Logan unitig source.
-2. **Filter out host plant rDNA** (18S/28S) — the most abundant baited signal and taxonomically useless for endophyte discovery.
-3. **Classify each remaining read individually** and tally reads per taxon. Dereplication (the amplicon-metabarcoding idiom) is **not appropriate** here: endophyte rDNA may be present at only 1–10× coverage; there will rarely be enough identical reads to collapse meaningfully, and collapsing would destroy the absolute-count signal.
-4. **Report** what fungal taxa are present and at what read-level abundance.
+**Path A — ITS via SRA raw reads (primary; species-level)**
+1. Stream raw reads from SRA (`fasterq-dump --stdout --split-spot`).
+2. **Bait** reads overlapping fungal-specific ITS primer binding sites (k-mer seeds from validated fungal primers, e.g. ITS1-F, ITS2, ITS3-KYO variants). Fungal-specific primers exclude most host plant rDNA at the baiting stage.
+3. **Classify** each baited ITS read against UNITE → species/genus-level taxonomy.
+4. Tally read counts per taxon — the absolute count is the signal; do not dereplicate.
 
-Raw SRA reads (`source=sra`) are required for ITS recovery: Logan's de Bruijn assembly collapses rDNA tandem repeats to ~33 bp unitigs, losing variable-region information needed for species-level classification (see D20). Logan unitigs remain valuable for protein-coding marker recovery and as a fast pre-screen.
+**Path B — protein-coding markers via Logan unitigs (secondary; scales to all of Logan)**
+1. Stream Logan unitigs (`aws s3 cp … | zstdcat`).
+2. **Bait** reads overlapping fungal protein-coding markers (RPB2, RPB1, TEF1a, β-tubulin). Single-copy genes assemble to 1000–3000 bp unitigs in Logan (confirmed: RPB2 → 3389 bp, RPB1 → 1991 bp, TEF1a → 483 bp on ERR15383529 — see D20); no tandem-repeat collapse problem.
+3. **Classify** against protein-coding reference databases → genus/family level (coarser than ITS but works across all of Logan without downloading raw reads).
+
+Both paths write to the same taxa × samples table. Path B scales better (Logan data is 10–100× smaller than raw reads and requires no SRA download); Path A gives better taxonomic resolution. Together they give both breadth and depth.
 
 ### Two core query modes, one shared backend
 
@@ -123,16 +129,30 @@ Downstream: metabarcoding-style **reports and graphs**. **Alpha/beta diversity i
                           └────────────────────────┘
 ```
 
-### The read-level core (shared by raw reads and Logan unitigs)
+### The read-level core — two paths, one table
+
+**Path A: ITS via SRA raw reads**
 ```
-stream input (reads OR unitigs) from S3/disk
-   → k-mer bait against conserved rDNA seed models (bbduk), keep candidates only
-   → annotate locus boundaries (ITSx / HMM) → split conserved vs informative
-   → measure informative length → GATE (drop / coarse / fine, per calibration map)
-   → dereplicate / cluster (vsearch) → features + frequencies
-   → classify (q2-feature-classifier vs UNITE/SILVA; AGGATCATTA reconciliation)
-   → delete the accession's transient files
+fasterq-dump --stdout --split-spot (stream from SRA, never land full FASTQ)
+   → bbduk: k-mer bait against fungal-specific ITS primer seeds (k≈20-25)
+   → annotate locus (BLAST vs rdna_ref; ITSx for reads long enough to span flanks)
+   → gate on informative length (per calibration map)
+   → classify each read: q2-feature-classifier vs UNITE → species/genus
+   → tally read counts per taxon (no dereplication)
+   → delete transient files
 ```
+
+**Path B: protein-coding markers via Logan unitigs**
+```
+aws s3 cp … | zstdcat (stream from Logan S3, never land full unitig file)
+   → bbduk: k-mer bait against fungal protein-coding marker seeds
+     (RPB2, RPB1, TEF1a, β-tubulin — single-copy, long Logan unitigs)
+   → classify unitigs: blastn or minimap2 vs protein-coding reference DB → genus/family
+   → tally unitig counts per taxon
+   → delete transient files
+```
+
+Both paths append results to the shared taxa × samples table.
 
 ---
 

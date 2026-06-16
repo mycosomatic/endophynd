@@ -155,3 +155,10 @@
 - Why host filter: Host plant rDNA (18S, 28S) will be the most abundant hit after baiting — the plant's own ~1000 rDNA copies dominate. These must be removed before classification or the output is dominated by the host.
 - Amplicon archives: metabarcoding SRA libraries remain a planned secondary capability, gated by input_type=amplicon in the samplesheet. They use the same bait core plus fastp PE merge, and dereplication is appropriate there. The WGS pipeline is not designed around amplicon assumptions.
 - Status: Accepted. Development plan updated (Revision 4).
+
+### 2026-06-16 — D24: Two-path recovery — ITS via SRA raw reads; protein-coding via Logan unitigs
+- Decision: The blind discovery pipeline uses two complementary paths. Path A: stream SRA raw reads → bait with fungal-specific ITS primer k-mers → classify against UNITE → species/genus level. Path B: stream Logan unitigs → bait with fungal protein-coding marker seeds (RPB2, RPB1, TEF1a, β-tubulin) → classify against protein-coding reference DB → genus/family level.
+- Why ITS needs SRA: Logan collapses rDNA tandem repeats to ~33bp unitigs (D20). ITS variable-region information is destroyed. Full-length SRA reads (PE151) span the ITS region and classify to species with UNITE.
+- Why protein-coding uses Logan: Single-copy genes assemble to full-length unitigs in Logan (RPB2 → 3389bp, RPB1 → 1991bp, TEF1a → 483bp confirmed on ERR15383529). No tandem-repeat collapse. Logan data is 10–100× smaller than raw reads, making it practical to screen all of Logan without downloading SRA files for every accession. Coarser resolution (genus/family) acceptable for this scale.
+- Why fungal-specific primers as bait seeds: Generic conserved rDNA seeds (SSU, LSU) bait host plant rDNA as the dominant signal. Fungal-specific primers (ITS1-F, ITS3-KYO variants, etc.) select reads overlapping primer binding sites that are enriched in Fungi, reducing host contamination at the baiting stage.
+- Status: Accepted. Supersedes the single-path rDNA baiting design in Revision 3 of the development plan.
