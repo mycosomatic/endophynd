@@ -22,15 +22,17 @@ def test_seed_file_not_empty():
 
 
 def test_seed_file_is_valid_fasta():
-    """All lines must be header or sequence; at least one header present."""
+    """All lines must be header or IUPAC nucleotide; at least one header present."""
+    # Full IUPAC degenerate nucleotide alphabet + RNA uracil
+    IUPAC = set("ACGTURYSWKMBDHVNacgturyswkmbdhvn")
     headers = 0
     with open(SEED_FA) as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            assert line.startswith(">") or all(c in "ACGTNacgtn" for c in line), (
-                f"Unexpected line in FASTA: {line!r}"
+            assert line.startswith(">") or all(c in IUPAC for c in line), (
+                f"Unexpected character in FASTA line: {line!r}"
             )
             if line.startswith(">"):
                 headers += 1
@@ -85,11 +87,14 @@ def test_provenance_file_exists():
     assert SEED_PROV.exists(), f"Provenance file missing: {SEED_PROV}"
 
 
-def test_provenance_has_status():
+def test_provenance_has_completion_info():
     import yaml
     with open(SEED_PROV) as f:
         prov = yaml.safe_load(f)
-    assert "status" in prov, "Provenance file missing 'status' key"
+    assert "n_sequences_written" in prov, (
+        "Provenance file missing 'n_sequences_written' key — was the build script run?"
+    )
+    assert prov["n_sequences_written"] > 0, "Provenance reports 0 sequences written"
 
 
 # ---------------------------------------------------------------------------

@@ -27,6 +27,9 @@ gate:
   # Fallback thresholds used until the calibration map is built (Phase 1.5).
   # These are guesses; DO NOT use for publication.
   fallback_thresholds:
+    ITS:                  # BLAST assigns ITS1+5.8S+ITS2 together as "ITS"
+      coarse_min_bp: 50
+      fine_min_bp: 100
     ITS1:
       coarse_min_bp: 50
       fine_min_bp: 100

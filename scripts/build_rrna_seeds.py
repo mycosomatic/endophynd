@@ -96,14 +96,20 @@ TAXA_GROUPS = {
         "Chytriomyces[Organism] AND (18S ribosomal RNA[Title] OR 18S rRNA[Title])",
         "Chytridiomycota (Chytriomyces)",
     ),
-    # 5.8S seeds — highly conserved; even a few sequences cover Fungi broadly
-    "5.8S_Ascomycota": (
-        "Aspergillus[Organism] AND 5.8S ribosomal RNA[Title]",
-        "5.8S rRNA — Aspergillus (baits ITS flanks for all Ascomycota)",
+    # ITS amplicon seeds (ITS1 + 5.8S + ITS2) — standalone 5.8S records barely
+    # exist in NCBI; instead fetch full ITS amplicons which contain 5.8S.
+    # These k-mers bait ITS-region reads that SSU/LSU seeds would miss.
+    "ITS_Ascomycota": (
+        "Aspergillus[Organism] AND internal transcribed spacer[Title]",
+        "ITS1+5.8S+ITS2 amplicons — Ascomycota (Aspergillus)",
     ),
-    "5.8S_Basidiomycota": (
-        "Agaricus[Organism] AND 5.8S ribosomal RNA[Title]",
-        "5.8S rRNA — Agaricus (baits ITS flanks for Basidiomycota)",
+    "ITS_Basidiomycota": (
+        "Agaricus[Organism] AND internal transcribed spacer[Title]",
+        "ITS1+5.8S+ITS2 amplicons — Basidiomycota (Agaricus)",
+    ),
+    "ITS_Pleosporales": (
+        "Alternaria[Organism] AND internal transcribed spacer[Title]",
+        "ITS1+5.8S+ITS2 amplicons — Alternaria (mock community taxon)",
     ),
     # LSU (28S) seeds — catch reads anchored in LSU rather than SSU or ITS
     "LSU_Ascomycota": (
@@ -118,15 +124,15 @@ TAXA_GROUPS = {
 
 # Length window per locus type (NCBI SLEN filter)
 LEN_FILTER = {
-    "5.8S": "100:300[SLEN]",
+    "ITS": "200:1500[SLEN]",     # full ITS amplicons (ITS1+5.8S+ITS2)
     "LSU": "200:3000[SLEN]",
     "SSU": "800:3000[SLEN]",  # full-length 18S is ~1800 bp
 }
 
 
 def _len_filter_for_group(group_key: str) -> str:
-    if "5.8S" in group_key:
-        return LEN_FILTER["5.8S"]
+    if "ITS" in group_key:
+        return LEN_FILTER["ITS"]
     if "LSU" in group_key:
         return LEN_FILTER["LSU"]
     return LEN_FILTER["SSU"]
