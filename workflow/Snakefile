@@ -46,6 +46,10 @@ def _sample_acc(wildcards):
     return _sample_field(wildcards, "accession", "")
 
 
+def _sample_platform(wildcards):
+    return _sample_field(wildcards, "platform", "illumina")
+
+
 # ---------------------------------------------------------------------------
 # Cache directories (resolved at runtime from cache.yml)
 # ---------------------------------------------------------------------------
@@ -140,6 +144,7 @@ rule triage:
     params:
         source=lambda wildcards: _sample_source(wildcards),
         acc=lambda wildcards: _sample_acc(wildcards),
+        platform=lambda wildcards: _sample_platform(wildcards),
     log:
         COLD / "logs" / "triage" / "{sample}.log",
     conda:
@@ -185,7 +190,18 @@ rule triage:
             exit 1
         fi
 
-        echo "triage_ok source=$SOURCE acc=$ACC" > {output.passed}
+        # Platform validation — warn on unknown values so users catch typos early.
+        PLATFORM="{params.platform}"
+        case "$PLATFORM" in
+            illumina|pacbio-hifi|pacbio-clr|ont) ;;
+            *)
+                echo "[triage][WARN] {wildcards.sample}: platform='$PLATFORM'" \
+                     "not in (illumina|pacbio-hifi|pacbio-clr|ont) —" \
+                     "bait/quality settings will default to illumina" | tee -a {log}
+                ;;
+        esac
+
+        echo "triage_ok source=$SOURCE acc=$ACC platform=$PLATFORM" > {output.passed}
         """
 
 
@@ -219,6 +235,7 @@ rule retrieve_and_bait:
     params:
         source=lambda wildcards: _sample_source(wildcards),
         acc=lambda wildcards: _sample_acc(wildcards),
+        platform=lambda wildcards: _sample_platform(wildcards),
         seed_ref=config["bait"]["seed_ref"],
         k=config["bait"]["k"],
         hdist=config["bait"]["hdist"],
@@ -271,30 +288,61 @@ rule retrieve_and_bait:
                 2>> {log}
 
         elif [ "$SOURCE" = "sra" ]; then
-            # Stream raw reads from NCBI SRA via fasterq-dump.
-            # --stdout      : write FASTQ to stdout (no <ACC>.fastq temp file on disk)
-            # --split-spot  : interleave PE reads — R1 then R2 per spot; bbduk
-            #                 sees each read independently (no int=t needed for baiting)
-            # --skip-technical: omit technical reads (barcodes, linkers)
-            # fasterq-dump still creates small internal temp files; they land in
-            # the current directory by default (typically the Snakemake workdir).
-            # The full raw FASTQ stream is NEVER written to disk — only the small
-            # baited output lands on the hot cache.
+            PLATFORM="{params.platform}"
+
+            # Per-platform streaming and bait settings.
+            # Illumina (PE): --split-spot interleaves R1/R2; int=t tells bbduk
+            #   to treat pairs together (bait-then-mate: keep both reads if either
+            #   matches). minlength=100; no quality floor (Illumina Q30+ inherently).
+            # PacBio HiFi (CCS): single-end long reads, Q30-40. No split-spot.
+            #   minlength=500 to skip adapter fragments; minavgquality=30.
+            # PacBio CLR / ONT: single-end, error-prone (Q10-20). No split-spot.
+            #   minlength=500; minavgquality=15. Classification capped at genus in
+            #   provenance — do not report species-level calls from these platforms.
+            if [ "$PLATFORM" = "illumina" ]; then
+                SPOT_FLAG="--split-spot"
+                PAIR_ARG="int=t"
+                BAIT_MINLEN={params.minlength}
+                QUAL_ARG=""
+            elif [ "$PLATFORM" = "pacbio-hifi" ]; then
+                SPOT_FLAG=""
+                PAIR_ARG=""
+                BAIT_MINLEN=500
+                QUAL_ARG="minavgquality=30"
+            elif [ "$PLATFORM" = "pacbio-clr" ] || [ "$PLATFORM" = "ont" ]; then
+                SPOT_FLAG=""
+                PAIR_ARG=""
+                BAIT_MINLEN=500
+                QUAL_ARG="minavgquality=15"
+            else
+                echo "[bait][WARN] {wildcards.sample}: unknown platform '$PLATFORM'" \
+                     "— defaulting to illumina settings" >> {log}
+                SPOT_FLAG="--split-spot"
+                PAIR_ARG="int=t"
+                BAIT_MINLEN={params.minlength}
+                QUAL_ARG=""
+            fi
+
+            echo "[bait] {wildcards.sample}: platform=$PLATFORM" \
+                 "minlen=$BAIT_MINLEN paired=${{PAIR_ARG:-no}}" \
+                 "qualfloor=${{QUAL_ARG:-none}}" >> {log}
+
             {{
                 fasterq-dump "$ACC" \
                     --stdout \
-                    --split-spot \
+                    $SPOT_FLAG \
                     --skip-technical \
                     --threads {threads} \
                 | bbduk.sh \
                     in=stdin.fq \
-                    int=t \
+                    $PAIR_ARG \
                     ref={params.seed_ref} \
                     outm={output.baited} \
                     stats={output.bait_stats} \
                     k={params.k} \
                     hdist={params.hdist} \
-                    minlength={params.minlength} \
+                    minlength=$BAIT_MINLEN \
+                    $QUAL_ARG \
                     threads={threads}
             }} 2>> {log}
 
