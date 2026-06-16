@@ -154,6 +154,14 @@ rule triage:
         mkdir -p $(dirname {output.passed})
         mkdir -p $(dirname {log})
 
+        STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+        {{
+            echo "=== [triage] {wildcards.sample}  $STAMP ==="
+            echo "  source   : {params.source}"
+            echo "  acc      : {params.acc}"
+            echo "  platform : {params.platform}"
+        }} > {log}
+
         SOURCE="{params.source}"
         ACC="{params.acc}"
 
@@ -161,32 +169,32 @@ rule triage:
             # Basic accession format check: SRR/ERR/DRR run accessions.
             # Does NOT download; size check from logan-pub/stat parquet deferred to Phase 1.5.
             if echo "$ACC" | grep -qE '^(SRR|ERR|DRR)[0-9]+$'; then
-                echo "[triage] {wildcards.sample}: Logan $ACC format OK" | tee {log}
+                echo "[triage] {wildcards.sample}: Logan $ACC format OK" | tee -a {log}
             else
                 echo "[triage][WARN] {wildcards.sample}: '$ACC' doesn't look like a" \
-                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee {log}
+                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee -a {log}
             fi
 
         elif [ "$SOURCE" = "local" ]; then
             if [ -f "$ACC" ]; then
-                echo "[triage] {wildcards.sample}: local file $ACC exists" | tee {log}
+                echo "[triage] {wildcards.sample}: local file $ACC exists" | tee -a {log}
             else
-                echo "[triage][ERROR] {wildcards.sample}: local file not found: $ACC" | tee {log}
+                echo "[triage][ERROR] {wildcards.sample}: local file not found: $ACC" | tee -a {log}
                 exit 1
             fi
 
         elif [ "$SOURCE" = "sra" ]; then
             # Validate accession format only — no network call.
             if echo "$ACC" | grep -qE '^(SRR|ERR|DRR)[0-9]+$'; then
-                echo "[triage] {wildcards.sample}: SRA $ACC format OK" | tee {log}
+                echo "[triage] {wildcards.sample}: SRA $ACC format OK" | tee -a {log}
             else
                 echo "[triage][WARN] {wildcards.sample}: '$ACC' doesn't look like a" \
-                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee {log}
+                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee -a {log}
             fi
 
         else
             echo "[triage][ERROR] source='$SOURCE' not supported." \
-                 "Use 'logan', 'local', or 'sra'." | tee {log}
+                 "Use 'logan', 'local', or 'sra'." | tee -a {log}
             exit 1
         fi
 
@@ -249,6 +257,22 @@ rule retrieve_and_bait:
         """
         mkdir -p $(dirname {output.baited})
         mkdir -p $(dirname {log})
+
+        STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+        {{
+            echo "=== [bait] {wildcards.sample} START $STAMP ==="
+            echo "  source    : {params.source}"
+            echo "  acc       : {params.acc}"
+            echo "  platform  : {params.platform}"
+            echo "  seed_ref  : {params.seed_ref}"
+            echo "  seed_md5  : $(md5sum {params.seed_ref} | cut -d' ' -f1)"
+            echo "  k         : {params.k}"
+            echo "  hdist     : {params.hdist}"
+            echo "  minlength : {params.minlength}"
+            echo "  threads   : {threads}"
+            echo "  bbduk     : $(bbduk.sh --version 2>&1 | grep BBTools | head -1 || echo unknown)"
+            echo ""
+        }} >> {log}
 
         SOURCE="{params.source}"
         ACC="{params.acc}"
@@ -323,9 +347,13 @@ rule retrieve_and_bait:
                 QUAL_ARG=""
             fi
 
-            echo "[bait] {wildcards.sample}: platform=$PLATFORM" \
-                 "minlen=$BAIT_MINLEN paired=${{PAIR_ARG:-no}}" \
-                 "qualfloor=${{QUAL_ARG:-none}}" >> {log}
+            {{
+                echo "  fasterq-dump : $(fasterq-dump --version 2>&1 | head -1 || echo unknown)"
+                echo "  pair_arg     : ${{PAIR_ARG:-none}}"
+                echo "  qual_arg     : ${{QUAL_ARG:-none}}"
+                echo "  bait_minlen  : $BAIT_MINLEN"
+                echo ""
+            }} >> {log}
 
             {{
                 fasterq-dump "$ACC" \
@@ -352,13 +380,18 @@ rule retrieve_and_bait:
             exit 1
         fi
 
-        # Warn (but don't fail) if bbduk found nothing — could be a real
-        # absence of rDNA, or a seed-set miss.  Gate stats log the rate.
+        # Summarize bait results; the summary line is parsed by the provenance rule.
         NSEQ=$(grep -c "^>" {output.baited} 2>/dev/null || echo 0)
-        echo "[bait] {wildcards.sample}: $NSEQ candidate sequences baited" >> {log}
+        TOTAL=$(awk '/^#Total/{{print $2}}' {output.bait_stats} 2>/dev/null || echo "?")
+        MATCHED=$(awk '/^#Matched/{{print $2}}' {output.bait_stats} 2>/dev/null || echo "?")
+        MATCH_PCT=$(awk '/^#Matched/{{print $3}}' {output.bait_stats} 2>/dev/null || echo "?")
+        STAMP_END=$(date -u +%Y%m%dT%H%M%SZ)
+        {{
+            echo "[bait] {wildcards.sample}: total_reads=$TOTAL matched=$MATCHED ($MATCH_PCT) seqs_out=$NSEQ"
+            echo "=== [bait] {wildcards.sample} END $STAMP_END ==="
+        }} >> {log}
         if [ "$NSEQ" = "0" ]; then
-            echo "[bait][WARN] {wildcards.sample}: 0 sequences baited — check" \
-                 "seed file and accession." >> {log}
+            echo "[bait][WARN] {wildcards.sample}: 0 sequences baited — check seed file and accession." >> {log}
         fi
         """
 
@@ -531,10 +564,14 @@ rule provenance:
             str(RESULTS / "{sample}" / "feature_table.stub.qza"),
             sample=SAMPLE_IDS,
         ),
+        bait_logs=expand(
+            str(COLD / "logs" / "bait" / "{sample}.log"),
+            sample=SAMPLE_IDS,
+        ),
     output:
         prov=RESULTS / "provenance.json",
     run:
-        import json, datetime, subprocess
+        import json, datetime, subprocess, hashlib, re
 
         def git_sha():
             try:
@@ -544,11 +581,73 @@ rule provenance:
             except Exception:
                 return "unknown"
 
+        def git_branch():
+            try:
+                return subprocess.check_output(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True
+                ).strip()
+            except Exception:
+                return "unknown"
+
+        def md5_file(path):
+            h = hashlib.md5()
+            try:
+                with open(path, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(65536), b""):
+                        h.update(chunk)
+                return h.hexdigest()
+            except Exception:
+                return "missing"
+
+        def parse_bait_log(log_path):
+            try:
+                text = Path(str(log_path)).read_text()
+                m = re.search(
+                    r'\[bait\]\s+\S+:\s+total_reads=(\S+)\s+matched=(\S+)\s+\((\S+)\)\s+seqs_out=(\S+)',
+                    text,
+                )
+                if m:
+                    return {
+                        "total_reads": m.group(1),
+                        "matched": m.group(2),
+                        "match_pct": m.group(3),
+                        "seqs_out": m.group(4),
+                    }
+            except Exception:
+                pass
+            return {"total_reads": "?", "matched": "?", "match_pct": "?", "seqs_out": "?"}
+
+        def tool_version(cmd):
+            try:
+                return subprocess.check_output(
+                    cmd, stderr=subprocess.STDOUT, text=True
+                ).strip().splitlines()[0]
+            except Exception:
+                return "unknown"
+
+        seed_ref = config["bait"]["seed_ref"]
+        its_primers = "resources/its_primers.fa"
+
+        bait_stats = {
+            sid: parse_bait_log(log_path)
+            for sid, log_path in zip(SAMPLE_IDS, input.bait_logs)
+        }
+
         prov = {
             "run_id": RUN_ID,
             "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
             "git_commit": git_sha(),
+            "git_branch": git_branch(),
+            "seed_checksums": {
+                seed_ref: md5_file(seed_ref),
+                its_primers: md5_file(its_primers),
+            },
+            "tool_versions": {
+                "snakemake": tool_version(["snakemake", "--version"]),
+                "python": tool_version(["python3", "--version"]),
+            },
             "samples": SAMPLE_IDS,
+            "bait_stats": bait_stats,
             "phase": "1-read-level-discovery",
             "note": (
                 "Phase 1: real Logan streaming + bbduk baiting. "
