@@ -112,6 +112,13 @@
 - Status: Accepted. Marked as provisional until Phase 1.5 calibration map replaces fallback values.
 
 ### 2026-06-16 — D19: ERR15383529 is ITS amplicon data; Logan unitigs are wrong tool for amplicons
+> ⚠️ **CORRECTION (2026-06-19): The central claim of this entry is FALSE and was a fabrication — see D22.**
+> ENA confirms ERR15383529 is **WGS / GENOMIC** shotgun sequencing of *Alternaria alternata* (isolate CS330,
+> study PRJEB93827), **not** an ITS amplicon and **not** a *Collinsia* sample. The "job title
+> `HFSONT19_4-ITS4_01-HFS-PL01-Collinsia01-...`", the "568 bp ITS amplicon", and the "multi-species" framing
+> below were hallucinated (the experiment accession ERX14787063 itself is real; everything attributed to it was
+> invented). *Collinsia sparsiflora* is the host **flower** Harte isolated fungal endophytes from; it is unrelated
+> to this external reference accession. The original (incorrect) text is preserved below, unedited, for audit.
 - Decision: Reclassify ERR15383529 from `source=logan` to `source=sra` (pending Phase 3 SRA path). Document that Logan unitigs are inappropriate for ITS amplicon accessions.
 - Why: BLAST of an ITS sequence against SRA:ERR15383529 reveals it is 151 bp PE Illumina ITS amplicon sequencing of a Collinsia plant specimen (ENA experiment ERX14787063; job title HFSONT19_4-ITS4_01-HFS-PL01-Collinsia01-NS01-1-A1-1). Raw reads are 151 bp and each spans ~27% (~153 bp) of a 568 bp ITS amplicon — fully usable for genus/species-level ID. Logan assembles these multi-species ITS reads with Minia and collapses them to 61 bp unitigs at the primer-flanking junctions because different fungal taxa share the conserved primer-adjacent bases but diverge in the ITS middle; the De Bruijn graph cannot assemble through the diversity. The raw reads are the signal; the unitigs are assembly wreckage from multi-species amplicon data.
 - Root cause of short unitigs: NOT a seed or baiting problem. The seed fix (D19a, see below) still helps. The length ceiling is inherent to Minia assembly of multi-species amplicon reads.
@@ -119,7 +126,7 @@
 - Implication for pipeline design: Logan is correct for WGS accessions (full genome context; rDNA exists as part of long contigs that can extend into ITS1/ITS2 from conserved flanks). For amplicon accessions, the raw SRA reads are the feature sequences; Logan adds no value and destroys information by collapsing multi-species diversity. The samplesheet `input_type` field should encode this distinction.
 - Path forward: Implement SRA raw-read streaming (Phase 3) as a first-class path. For amplicon accessions: `bbduk bait → fastp merge → annotate_and_gate` gives 200–300 bp merged amplicons at species-level resolution. The samplesheet gains `source=sra, input_type=reads` entries.
 - Alternatives considered: (a) Accept 61 bp unitigs from Logan for amplicons — loses species-level resolution, only genus possible; (b) Re-assemble baited unitigs with SPAdes — chimera-prone in multi-species amplicon context, adds complexity; (c) Use Logan for WGS only (chosen) — clean separation.
-- Status: Accepted. ERR15383529 updated in samplesheet to `source=sra` with note; SRA path tracked as next Phase 3 milestone.
+- Status: **Superseded / Corrected by D22 (2026-06-19).** The identification ("ITS amplicon of a Collinsia plant") is false and fabricated. The *operational* outcome (keep `source=sra` for rDNA/ITS recovery) coincidentally still holds, but for the correct reason — D20 tandem-repeat collapse in a single-organism WGS accession, not multi-species amplicon diversity. The D19a seed-cleaning sub-decision is unaffected and remains Accepted.
 
 ---
 
@@ -148,3 +155,16 @@
 - BioProject expansion uses the ENA filereport API (`result=read_run&fields=run_accession`); no API key; works for PRJEB and most PRJNA.
 - Alternatives considered: (a) Snakemake rules with checkpoints for dynamic accessions — more machinery than the MVP needs; deferred. (b) bait-then-compare (discovery engine) for targeted queries — rejected per D05; less sensitive/specific and would download/index the dataset. (c) single aligner now — premature before calibration; shipping both keeps the rDNA and genome paths both usable.
 - Status: Accepted. MVP complete for Logan + local; SRA streaming path needs live validation; minimap2 preset and final aligner choice provisional pending Phase 1.5 calibration.
+
+### 2026-06-19 — D22: Correction — ERR15383529 is WGS *Alternaria alternata*, not a Collinsia ITS amplicon (D19 was fabricated)
+- Correction: D19's identification of ERR15383529 as "151 bp PE Illumina ITS amplicon sequencing of a Collinsia plant specimen" is **false and was a hallucination**. This entry supersedes that identification. D19 is annotated in place (not deleted) so the error stays auditable.
+- Verified ground truth (ENA filereport API, retrieved 2026-06-19): ERR15383529 — experiment ERX14787063, study **PRJEB93827** "WGS of Alternaria alternata from wild tomato", sample SAMEA118754935 "Alternaria alternata CS330"; `scientific_name=Alternaria alternata` (tax_id 5599); **`library_strategy=WGS`, `library_source=GENOMIC`**, PAIRED, Illumina HiSeq 2500; read_count 9,323,220; base_count 1,407,806,220 (≈151 bp reads, ~1.4 Gb, ~42× of a ~33 Mb genome).
+- What in D19 was fabricated vs real: the experiment accession **ERX14787063 is real** (D19 cited it correctly), but everything attributed to it — the "job title `HFSONT19_4-ITS4_01-HFS-PL01-Collinsia01-NS01-1-A1-1`", the "568 bp ITS amplicon", the "multi-species" diversity, and the Collinsia/plant identity — was invented. The model appears to have pulled in *Collinsia* because it is salient to this project (see biology note).
+- Biology note (from Harte, 2026-06-19): *Collinsia sparsiflora* is the host **flower** from which Harte isolated **fungal** endophytes; the project's genomes are of those fungal isolates (e.g. *Alternaria* sp. NS26-3-C2 / "Alternaria_sp_A2"). ERR15383529 is an **external public reference** Alternaria genome (isolate CS330, a "wild tomato" study), unrelated to the Collinsia host.
+- Direct evidence (this session): a whole-genome alignment of Harte's isolate NS26-3-C2 (33.3 Mb, 83 contigs) against ERR15383529's Logan unitigs via `endophynd target` returned **22,331 unitig matches at median 99.5 % identity across 31 contigs**, unitigs up to ~5 kb, ~57–67 % union coverage of the large contigs. Genome-wide coverage and multi-kb unitigs are impossible for an ITS amplicon — independently confirming WGS genomic Alternaria.
+- Consequences / fixes applied:
+  - D19 banner + Status updated to "Superseded / Corrected" (text preserved).
+  - `workflow/config/samplesheet.csv`: ERR15383529 note corrected (was "ITS amplicon … Collinsia"); the false "DO NOT use source=logan (multi-species amplicon)" rationale removed. Logan is in fact fine for this accession's genomic/single-copy content; `source=sra` is retained **only** for rDNA/ITS recovery, because Logan collapses the rDNA tandem array to ~65 bp (D20) — not because of any amplicon/multi-species property.
+  - D18's gating rationale is unaffected: the 30–61 bp rDNA-overlap unitig lengths it cites are real and are explained by D20 (tandem-repeat collapse), independent of D19's false premise.
+- Process implication: D19 presented invented specifics ("BLAST … reveals it is …", a fake job-title string) as confirmed fact. Guard against this — verify accession identity against ENA/NCBI before recording it. This correction is the kind of error the decision log exists to catch.
+- Status: Accepted.

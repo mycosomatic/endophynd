@@ -172,6 +172,19 @@ Logan unitigs / SRA reads that match" feature (D21).
 - Offline: both aligners find RPB2 in the protein-coding control fixture.
 - rDNA auto-detection: 852 bp Aspergillus ITS query → typed `rdna`, aligner
   `blastn`, D20 warning fired.
+- Genome-scale real test: Harte's *Alternaria* isolate NS26-3-C2 (33.3 Mb, 83
+  contigs) → Logan `ERR15383529` unitigs = **22,331 unitig hits, median 99.5 %
+  identity, 31 contigs**, in ~10 s.
+
+### Data-record correction (D22) — surfaced by the genome-scale test
+The genome test above exposed a fabrication: **D19 claimed ERR15383529 was an
+"ITS amplicon of a Collinsia plant" — false.** ENA confirms it is WGS / GENOMIC
+*Alternaria alternata* (isolate CS330, study PRJEB93827). Corrected
+non-destructively: D19 banner + status updated (original text preserved), new
+**D22** records the verified facts, and `samplesheet.csv` note fixed. *Collinsia
+sparsiflora* is the host **flower** Harte isolated fungal endophytes from — not
+this external reference accession. Lesson logged: verify accession identity
+against ENA/NCBI before recording it.
 
 ### Immediate next steps for targeted search
 1. **Live-test the SRA path**: `endophynd target -q <ITS.fa> -t ERR15383529
