@@ -140,6 +140,54 @@ for specific baiting of rDNA; k=31 with hdist=1 (the bbduk default) is appropria
 
 ---
 
+## Session 2026-06-19: Targeted search MVP (capability B, Phase 4) built
+
+Built `endophynd target` — the "point a query at a group of genomes and find the
+Logan unitigs / SRA reads that match" feature (D21).
+
+### What landed
+- New package `endophynd/target/`: `models.py`, `resolve.py`, `query.py`,
+  `align.py`, `aggregate.py`, `run.py`. New CLI subcommand `endophynd target`.
+- **Reference inversion (D05)**: the query is the reference; each target streams
+  through it; no dataset-side DB is built or downloaded.
+- **Targets**: run accessions (SRR/ERR/DRR), a BioProject (PRJNA/PRJEB →
+  expanded via ENA filereport API), local FASTAs, or `@file`. Comma/repeat OK.
+- **Sources**: `logan` (built + validated), `local` (built + validated), `sra`
+  (command built via `fasterq-dump --stdout`, **not yet live-tested**), `auto`.
+- **Aligners**: minimap2 (genome/marker, default) and blastn (rDNA/divergent),
+  auto-selected by query type. blastn uses `qseq` to emit matched sequences.
+- **D20 caveat is in-tool**: an rDNA query auto-detected against `--source logan`
+  prints a warning to switch to SRA (Logan collapses rDNA to ~65 bp).
+- **Outputs** (per `--out`): `targeted_summary.tsv` (reverse-lookup headline),
+  `targeted_hits.tsv`, `presence_matrix.tsv`, `per_target/<acc>.hits.fa`,
+  `provenance.json`.
+- Config: `target:` block in `params.yml`; new env `envs/targeted.yml`.
+- Docs: guides `10_targeted_search.md` and `02_resolving_accessions.md`.
+- Tests: `tests/test_target.py` (23 tests — parsers, aggregation, resolution,
+  end-to-end). Full suite: 61 passed.
+
+### Validation done
+- REAL Logan stream: RPB2 query vs Logan `ERR15383529` unitigs → re-found the
+  3389 bp RPB2 unitig at 100% identity in ~12 s.
+- Offline: both aligners find RPB2 in the protein-coding control fixture.
+- rDNA auto-detection: 852 bp Aspergillus ITS query → typed `rdna`, aligner
+  `blastn`, D20 warning fired.
+
+### Immediate next steps for targeted search
+1. **Live-test the SRA path**: `endophynd target -q <ITS.fa> -t ERR15383529
+   --source sra --query-type rdna --aligner blastn -o results/its_sra`. Confirm
+   `fasterq-dump --stdout --split-spot | awk(fq2fa) | blastn` streams cleanly and
+   returns ITS hits. Watch for fasterq-dump stdout reliability (handoff §Option B
+   fallback below applies if it stalls).
+2. Consider a small real BioProject end-to-end (e.g. a handful of runs) to
+   exercise ENA expansion + parallel streaming.
+3. minimap2 preset (`asm20`) and the final single-aligner choice are provisional
+   pending Phase 1.5 mock-community calibration (§12).
+4. Optional: a Snakemake wrapper for resumable large-project runs (deferred; the
+   CLI engine already skips nothing and reruns are cheap for Logan).
+
+---
+
 ## What to build next: SRA raw-read streaming path (Phase 3, now elevated)
 
 ### Why this is urgent
