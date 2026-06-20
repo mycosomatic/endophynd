@@ -7,10 +7,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-_ap = argparse.ArgumentParser()
-_ap.add_argument("--res", default="results/alternaria_vs_gbi10")
-RES = Path(_ap.parse_args().res)
-HITS = RES / "hits"
+# Set in main() — do NOT parse argv at import time (keeps the module importable,
+# e.g. for tests of _organism_from).
+RES: Path
+HITS: Path
 
 # Coarse fungal-name keywords (for a hint only; the nt_organism column is the truth).
 # Dothideomycetes / Pleosporaceae genera dominate (they share conserved regions with
@@ -37,6 +37,12 @@ def _organism_from(ssciname: str, title: str) -> str:
 
 
 def main() -> None:
+    global RES, HITS
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--res", default="results/alternaria_vs_gbi10")
+    RES = Path(ap.parse_args().res)
+    HITS = RES / "hits"
+
     # alignment metadata
     meta_lines = (HITS / "all_alt_hits.meta.tsv").read_text().splitlines()
     meta_hdr = meta_lines[0].split("\t")

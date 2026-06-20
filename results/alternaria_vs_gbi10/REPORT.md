@@ -168,6 +168,18 @@ fragments — consistent with **low sequencing coverage** of a minor component (
 100%-to-published-reference pattern is equally consistent with index-hopping or a
 query↔reference near-clone — see §6 before reading anything into it.
 
+**Independent corroboration (raw SRA reads).** To check that these hits are not a Logan
+*assembly* artifact, one hit unitig (~250 bp) was BLASTed against the **NCBI SRA**
+database for its source run. It recovered **~20 raw reads that tile the unitig in an
+overlapping coverage pattern** — the reads stagger across the ~250 bp window with
+mutual overlap, mirroring how the assembler walked them into a single unitig. This
+confirms the matching DNA is present in the **raw reads themselves** (not introduced by
+Logan's assembly) and that the locus is covered by **multiple independent, overlapping
+reads** rather than one isolated read. Multi-read overlapping coverage is more
+consistent with genuine low-coverage DNA than with a single index-hopped read; it does
+**not**, however, exclude *deeper* index-hopping (many hopped reads can also tile), so
+the source-undetermined caveat (§6) stands unchanged.
+
 ---
 
 ## 5. What went wrong first, and how it was caught
@@ -260,11 +272,20 @@ the NS26-3-C2 genome and at what identity; `hits/confirmed_hits.tsv` records the
 top hit. They should agree (fungal / *Alternaria*).
 
 ### Files in this directory
-- `SUMMARY.tsv` — per-plant summary (note: the `ALT_strict_hits`/`FUNGAL` columns use
-  the *pre-correction* logic; §4 and `hits/` carry the corrected result).
-- `hits/all_alt_hits.fa`, `hits/all_alt_hits.meta.tsv` — the 137 unitigs + alignment metadata.
+- `SUMMARY.tsv` — **corrected** per-plant summary built from `hits/confirmed_hits.tsv`
+  (columns: `run`, `species`, `family`, `total_hits`, `nuclear_alternaria_hits`,
+  `mito_rRNA_crossmatch_hits`, `median_our_genome_identity`, `call`). The `call` is
+  *"query-DNA present (source undetermined)"* for the 5 positives and *"no query match"*
+  for the 5 negatives; counts agree with §4.
+- `SUMMARY.precorrection.tsv` — the **superseded** pre-correction table (≥500 bp gate +
+  blind FUNGAL panel, all 10 "INCONCLUSIVE"); kept for audit (see §5).
+- `provenance.json` — git commit, analysis/nt-BLAST date, tool versions, query-genome
+  checksum/size, control, params, and the 10 plant accessions.
+- `refs/README.md` — how to rebuild `combined_ref.fa` (ALT_ query genome + CTRL_
+  *S. cerevisiae* + the dropped FUNGAL_ panel); note `refs/` contents are gitignored.
+- `hits/all_alt_hits.fa`, `hits/all_alt_hits.meta.tsv` — 137 hit records (136 distinct unitigs) + alignment metadata.
 - `hits/all_alt_hits.nt_blast.tsv` — raw nt BLAST output.
-- `hits/confirmed_hits.tsv` — merged: alignment + nt classification per unitig (the hand-check table).
+- `hits/confirmed_hits.tsv` — merged: alignment + nt classification per hit (the hand-check table; the authoritative per-hit source for `SUMMARY.tsv`).
 - `hits/per_plant/<species>.alternaria_hits.fa` — per-plant annotated FASTAs.
 - `per_plant/<acc>.sam`, `<acc>.sig` — raw alignment + k-mer signature per plant (reusable).
-- `refs/` — combined reference, index, query/control signatures.
+- `refs/` — combined reference, index, query/control signatures (gitignored except `refs/README.md`).

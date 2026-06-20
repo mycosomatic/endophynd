@@ -1,0 +1,12 @@
+# PRE-CORRECTION (pre-D28, >=500bp + blind FUNGAL panel) — superseded by SUMMARY.tsv; see REPORT.md §5
+run	species	family	ALT_strict_hits	ALT_breadth	ALT_med_id	ALT_max_aln	ALT_contain_frac	ALT_approx_kb	CTRL_strict_hits	CTRL_contain_frac	FUNGAL_n	FUNGAL_members	CALL
+SRR30183952	Silene_verecunda	Caryophyllaceae	0	0.00000	0.992	466	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
+SRR30183458	Streptanthus_glandulosus	Brassicaceae	0	0.00000	0.000	0	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
+SRR35806671	Carpenteria_californica	Hydrangeaceae	0	0.00000	1.000	262	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
+SRR35807865	Dudleya_viscida	Crassulaceae	0	0.00000	0.995	258	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
+SRR35806735	Iris_munzii	Iridaceae_monocot	0	0.00000	0.000	0	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
+SRR35806654	Carex_obispoensis	Cyperaceae_monocot	0	0.00000	0.975	373	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
+SRR35806652	Berberis_harrisoniana	Berberidaceae	0	0.00000	0.000	0	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
+SRR35807883	Rosa_pinetorum	Rosaceae	0	0.00000	0.000	0	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
+SRR35806807	Ceanothus_ophiochilus	Rhamnaceae	0	0.00000	0.989	419	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
+SRR35806662	Calochortus_raichei	Liliaceae_monocot	0	0.00000	0.000	0	0.00000	0	0	0.00000	0	-	no fungal signal (INCONCLUSIVE)
