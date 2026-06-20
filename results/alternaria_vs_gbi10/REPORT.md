@@ -188,15 +188,16 @@ The first automated pass reported **0/10 — "no fungal signal, inconclusive."**
 was wrong, and only skepticism about an implausibly uniform zero exposed it. Two
 bugs:
 
-1. **Threshold too strict — and the corrected one is exploratory, not calibrated.**
+1. **Threshold too strict — the corrected one began post-hoc but is now calibrated.**
    "Real hit" was first set at ≥500 bp; that gave 0/10. Low-*coverage* DNA assembles
    into only ~210–470 bp Logan unitigs, so the genuine matches sat *just under* the
-   cut. Relaxing to ≥200 bp surfaced them — but this bar was **chosen after seeing
-   that ≥500 gave zero**, i.e. it is post-hoc. It is defensible *only* because every
-   retained hit is independently nt-confirmed fungal at 99–100%; it has **not** been
-   calibrated against a false-positive model and must be before any quantitative use
-   at scale (§6). (My earlier "echo of D20" rationale was wrong: D20 is *tandem-repeat*
-   collapse; these are single-copy loci, short purely from *low coverage*.)
+   cut. Relaxing to ≥200 bp surfaced them — initially post-hoc (**chosen after seeing
+   that ≥500 gave zero**). It has **since been calibrated** with biologically-absent
+   null genomes + a composition shuffle (`calibration/`, decision D29): at ≥95% /
+   ≥200 bp the false-positive floor (distant absent fungi *and* a shuffled query) is
+   **0** across all 10 datasets and the ALT signal exceeds it ~34×. (My earlier "echo
+   of D20" rationale was wrong: D20 is *tandem-repeat* collapse; these are single-copy
+   loci, short purely from *low coverage*.)
 2. **The "any-fungus" marker control was blind.** It used a panel of conserved
    single-copy markers (RPB2/TEF1/β-tubulin). Two compounding failures: (a) those
    genes are intron-laden, so cross-genus *DNA* alignment catches only short exon
@@ -228,14 +229,21 @@ positive control.
   **less common, less contaminant-prone fungi**, where a reproducible *pattern of
   co-occurrence* across many datasets is hard to dismiss. This 10-dataset run is
   hypothesis-generating, not conclusive.
-- **No calibrated null / no working any-fungus control.** The only noise floor was
-  *S. cerevisiae*, which returned 0 hits everywhere — a null that never fires cannot
-  estimate a false-positive rate. The conserved-marker "any-fungus" panel **failed
-  for tooling reasons** (introns break cross-genus DNA alignment; default blastn is
-  megablast) — a *methods* failure, not a finding — so the **5 negatives are
-  uncharacterized** ("no *Alternaria*-query match," not "no fungi").
-- **Threshold is post-hoc and uncalibrated** (§5) — needs an identity×length
-  false-positive curve before quantitative use at scale.
+- **Now calibrated with proper nulls** (`calibration/`, D29), replacing the pilot's
+  inadequate *S. cerevisiae* control. Yeast is itself a plausible endophyte/contaminant
+  (it registered 4 *real* yeast hits at ≥200 bp), so it is not a valid null. The
+  calibration added biologically-absent macrofungi (*Morchella/Boletus/Psilocybe*) +
+  a shuffle and measured a **0** false-positive floor at ≥95% / ≥200 bp (above).
+  *Caveat:* that floor is for chance + distant-fungus cross-talk, **not** index-hopping
+  (a null cannot be hopped) and **not** for an absent *close* relative of the query.
+  Separately, the conserved-marker "any-fungus" panel still failed for tooling reasons,
+  so the **5 negatives remain uncharacterized for *other* fungi** ("no *Alternaria*-query
+  match," not "no fungi").
+- **Threshold is calibrated** (§5, `calibration/`, D29): the ≥95% / ≥200 bp
+  false-positive floor — distant absent fungi (*Morchella/Boletus/Psilocybe*) plus a
+  composition-shuffled query — is 0 across all 10 datasets; ALT exceeds it ~34×. The
+  floor covers chance + distant-fungus cross-talk only (not index-hopping, not an
+  absent close relative).
 - **Species resolution is section-level.** Top hits span *A. alternata/brassicae/
   arborescens/tenuissima* — i.e. *Alternaria* sect. *Alternaria*, not a species; the
   query is indistinguishable from public complex members at this fragment length.
