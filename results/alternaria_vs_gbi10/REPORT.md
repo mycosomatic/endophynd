@@ -1,17 +1,30 @@
-# Trace *Alternaria* endophyte detection across 10 Green Biome Institute plant genomes
+# Detecting *Alternaria*-query DNA in 10 Green Biome Institute plant sequencing datasets
 
 *Endophynd targeted-search analysis. Run 2026-06-19. Author: Claude Code + Harte.*
-*Result directory: `results/alternaria_vs_gbi10/`. Tied to git commit (see provenance).*
+*Result directory: `results/alternaria_vs_gbi10/`.*
+
+> ## Scope — what this analysis does and does NOT claim
+> **Claims:** which of these plant sequencing **datasets contain DNA** matching the
+> *Alternaria* query, and which **fungal DNA** is present in their reads.
+> **Does NOT claim:** that any organism *lives in or on* the plant. A hit means the
+> DNA was in the reads — **endophyte, leaf-surface contaminant, lab/kit contaminant,
+> and Illumina index-hopping are all unexcluded explanations**, and this tool cannot
+> separate them. It is a hypothesis generator for follow-up wet-lab work, not proof
+> of residency. Its value comes from **scale and replication**, and especially from
+> **patterns in rarer, less contaminant-prone taxa** — a cosmopolitan contaminant
+> like *Alternaria alternata* is the *weakest* possible signal. This run is a
+> 10-dataset pilot.
 
 ---
 
 ## 1. Question
 
 Take Harte's cultured fungal isolate — *Alternaria* sp. **NS26-3-C2** (assembled
-genome, 33.35 Mb, 83 contigs) — and ask, for each of 10 plant genomes: **does this
-organism (or its close relatives) occur in that plant's sequencing data, and can we
-tell real signal from noise (plant orthologs, other fungi, decontamination
-artifacts)?**
+genome, 33.35 Mb, 83 contigs) — and ask, for each of 10 plant sequencing datasets:
+**do the reads contain DNA matching this query, can we separate real matches from
+artifacts (plant orthologs, conserved-region cross-matches), and which fungal DNA
+shows up?** The question is about *DNA in the reads*, not organisms in the plant
+(see Scope).
 
 This is the *targeted / reference-inversion* mode (capability B, decision D05): the
 query is the reference; each plant dataset is streamed *through* it; only matches
@@ -101,8 +114,9 @@ was ever landed on disk — only matched unitigs + a tiny k-mer signature per pl
    └───────────────────────┬──────────────────────┘
                            ▼
    ┌──────────────────────────────────────────────┐
-   │ RESULT: 5/10 plants carry trace, nt-confirmed │
-   │ Alternaria alternata (sensu lato) endophyte    │
+   │ RESULT: 5/10 datasets contain DNA matching the │
+   │ query at single-copy nuclear loci              │
+   │ (source undetermined — see Scope)              │
    └──────────────────────────────────────────────┘
 ```
 
@@ -110,47 +124,49 @@ was ever landed on disk — only matched unitigs + a tiny k-mer signature per pl
 similar) and the k-mer sketch (how much of the genome is present, ortholog-robust)
 — halving bandwidth. FIFOs guarantee both finish before the stream is discarded.
 
+**Caveat on the sketch branch:** the sourmash containment step shown above
+**produced no usable output** in this run (the `prefetch` parse returned empty for
+all 10 datasets — a tooling/format bug, not a biological zero), so containment
+contributed *zero* evidence here. The result rests on the alignment + nt
+reverse-classification path alone. Containment is retained in the pipeline pending a fix.
+
 ---
 
 ## 4. Result
 
-**5 of 10 plants carry trace *Alternaria*; 5 do not** (at the corrected threshold,
-≥95% identity over ≥200 bp, each hit confirmed by BLAST vs NCBI nt):
+**5 of 10 datasets contain DNA matching the *Alternaria* query; 5 do not** (≥95%
+identity over ≥200 bp; every retained hit nt-confirmed fungal — no plant/bacterial
+hits). After stripping conserved-locus (mitochondrial / rRNA) cross-matches — which
+are *not* query-specific (§6) — the **single-copy-nuclear, *Alternaria*-specific**
+signal per dataset is:
 
-| Plant | hit unitigs | of which *Alternaria* | other fungi | median id | longest aln |
-|---|---|---|---|---|---|
-| *Silene verecunda* | 106 | 88 | 18 | 99.2% | 466 bp |
-| *Carpenteria californica* | 17 | 17 | 0 | 100% | 262 bp |
-| *Ceanothus ophiochilus* | 7 | 6 | 1 | 99.5% | 269 bp |
-| *Dudleya viscida* | 5 | 5 | 0 | 99.5% | 258 bp |
-| *Carex obispoensis* | 2 | 2 | 0 | 98.8% | 296 bp |
-| *Streptanthus, Iris, Berberis, Rosa, Calochortus* | 0 | 0 | 0 | — | — |
+| Dataset (plant) | nuclear *Alternaria*-specific unitigs | mito/rRNA cross-matches | median id |
+|---|---|---|---|
+| *Silene verecunda* | 84 | 22 | 99.2% |
+| *Carpenteria californica* | 17 | 0 | 100% |
+| *Ceanothus ophiochilus* | 6 | 1 | 99.5% |
+| *Dudleya viscida* | 5 | 0 | 99.5% |
+| *Carex obispoensis* | 2 | 0 | 98.8% |
+| *Streptanthus, Iris, Berberis, Rosa, Calochortus* | 0 | 0 | — |
 
-Total: **137 hits, and every one is fungal — zero plant/bacterial false positives.**
-nt reverse-classification: **118 *Alternaria*** (the *alternata* species complex —
-*brassicae/alternata/arborescens/tenuissima*, indistinguishable, see §6) and **19
-other fungi** (16 environmental "Fungal sp." plus *Stemphylium*, *Bipolaris*,
-*Sclerophomella* — Dothideomycetes matched through conserved mitochondrial/rRNA
-regions of the query). Per-hit detail with our-genome *and* nt identities:
-`hits/confirmed_hits.tsv`; per-plant FASTAs to re-BLAST by hand:
-`hits/per_plant/<species>.alternaria_hits.fa`.
+**114 nuclear-specific unitigs + 23 conserved-region cross-matches = 137 total**, all
+fungal (136 distinct unitigs; one BLAST record is duplicated). The **same 5 datasets
+are positive whether or not the cross-matches are stripped**, so *which datasets carry
+the signal* is robust — the cross-matches only inflated counts. The nuclear hits are
+*Alternaria* (the *alternata* complex — *brassicae/alternata/arborescens/tenuissima*,
+indistinguishable, §6); the 23 stripped hits are *other* Dothideomycetes
+(*Stemphylium*, *Bipolaris*, "Fungal sp.") matched through conserved mito/rRNA regions
+of the query — a non-specific byproduct, not evidence about *Alternaria*. Per-hit
+detail (our-genome + nt identity, hand-checkable): `hits/confirmed_hits.tsv`.
 
-That 100%-fungal specificity (no plant orthologs sneaking through at ≥95% / ≥200 bp)
-is the headline validation of the corrected method.
-
-**Interpretation.** *Alternaria alternata* sensu lato — a cosmopolitan plant-
-associated fungus — is present as a **low-abundance endophyte/contaminant** in half
-of these unrelated California plant genomes. "Low-abundance" is why the unitigs are
-short (~210–470 bp): there is too little endophyte DNA for Logan to assemble past
-the conserved/unique boundaries (the genomic echo of the rDNA collapse in D20). The
-signal is nonetheless unambiguous — 99–100% identity over 200+ bp is far outside
-what a plant ortholog could produce, and nt BLAST independently calls it fungal.
-
-**On decontamination (the key worry).** The presence of foreign fungal DNA in 5/10
-datasets **disproves systematic host-filtering** of these GBI submissions — the
-endophyte signal survives all the way into Logan. So the strategy works; the 5
-zeros most likely reflect genuine absence of *Alternaria* specifically (a distant
-fungus would not match the *Alternaria* genome at all — see §6, open items).
+**What this shows — and what it does not.** It shows: *Alternaria* sect. *Alternaria*
+DNA, at 99–100% identity to **public references**, is present in the reads of 5/10
+datasets, at abundance low enough that Logan assembles only short (~210–470 bp)
+fragments — consistent with **low sequencing coverage** of a minor component (this is
+*not* the D20 tandem-repeat mechanism; these are single-copy nuclear loci). It does
+**not** show the fungus was alive, in the tissue, or even on the plant, and the
+100%-to-published-reference pattern is equally consistent with index-hopping or a
+query↔reference near-clone — see §6 before reading anything into it.
 
 ---
 
@@ -160,10 +176,15 @@ The first automated pass reported **0/10 — "no fungal signal, inconclusive."**
 was wrong, and only skepticism about an implausibly uniform zero exposed it. Two
 bugs:
 
-1. **Threshold too strict.** "Real hit" was set at ≥500 bp. But a low-abundance
-   endophyte only assembles into ~250 bp Logan unitigs, so the genuine signal sat
-   *just under* the cut and was silently discarded. **Fix:** ≥200 bp, then confirm
-   each hit by reverse-classification. Lowering the bar surfaced all 137 hits.
+1. **Threshold too strict — and the corrected one is exploratory, not calibrated.**
+   "Real hit" was first set at ≥500 bp; that gave 0/10. Low-*coverage* DNA assembles
+   into only ~210–470 bp Logan unitigs, so the genuine matches sat *just under* the
+   cut. Relaxing to ≥200 bp surfaced them — but this bar was **chosen after seeing
+   that ≥500 gave zero**, i.e. it is post-hoc. It is defensible *only* because every
+   retained hit is independently nt-confirmed fungal at 99–100%; it has **not** been
+   calibrated against a false-positive model and must be before any quantitative use
+   at scale (§6). (My earlier "echo of D20" rationale was wrong: D20 is *tandem-repeat*
+   collapse; these are single-copy loci, short purely from *low coverage*.)
 2. **The "any-fungus" marker control was blind.** It used a panel of conserved
    single-copy markers (RPB2/TEF1/β-tubulin). Two compounding failures: (a) those
    genes are intron-laden, so cross-genus *DNA* alignment catches only short exon
@@ -180,20 +201,40 @@ positive control.
 
 ## 6. Caveats & open items
 
-- **Species resolution.** Hits are 96–100% to *A. alternata* / *A. brassicae*. The
-  *A. alternata* complex is barely resolvable even with genomes, so the honest call
-  is "*Alternaria* sect. *Alternaria*, indistinguishable from NS26-3-C2 at this
-  resolution," not a named strain.
-- **Specificity.** 2/15 sampled hits were non-*Alternaria* Dothideomycetes caught
-  through conserved regions of the *Alternaria* genome query. Raw ALT counts
-  therefore slightly over-read *Alternaria*-specific signal; the
-  `confirmed_hits.tsv` nt column is the arbiter.
-- **The 5 zeros are "no *Alternaria*," not "no fungi."** A distant fungus (e.g. a
-  Basidiomycete) would not match the *Alternaria* genome at all. A proper
-  "any-fungus" check needs either the saved sourmash signatures vs a fungal genome
-  DB, or the SRA-reads path. *Not yet done.*
-- **Sensitivity floor.** Logan drops the lowest-abundance content; the SRA-reads
-  path is the sensitive backup for anything marginal.
+- **Source is undetermined — the headline caveat.** A hit is "this DNA was in these
+  reads." It does **not** distinguish a living endophyte from a leaf-surface
+  contaminant, a lab/kit contaminant, or **Illumina index-hopping** from *Alternaria*
+  libraries co-sequenced on the same flowcell. The 100%-identity-to-*published*-
+  reference pattern is exactly what index-hopping or a query↔reference near-clone
+  would produce. Ruling these out needs flowcell/co-sequencing metadata and a
+  per-dataset coverage-coherence check (real signal should *tile* the query genome,
+  not scatter as isolated high-identity tips). **"Endophyte" is unsupported; the
+  ceiling is "*Alternaria* DNA present, source undetermined."**
+- **Where credibility actually comes from: scale + rarer taxa.** *A. alternata* s.l.
+  is a cosmopolitan pathogen/contaminant, so its presence is weak evidence of
+  anything. The tool earns its keep at **large sample size**, and especially on
+  **less common, less contaminant-prone fungi**, where a reproducible *pattern of
+  co-occurrence* across many datasets is hard to dismiss. This 10-dataset run is
+  hypothesis-generating, not conclusive.
+- **No calibrated null / no working any-fungus control.** The only noise floor was
+  *S. cerevisiae*, which returned 0 hits everywhere — a null that never fires cannot
+  estimate a false-positive rate. The conserved-marker "any-fungus" panel **failed
+  for tooling reasons** (introns break cross-genus DNA alignment; default blastn is
+  megablast) — a *methods* failure, not a finding — so the **5 negatives are
+  uncharacterized** ("no *Alternaria*-query match," not "no fungi").
+- **Threshold is post-hoc and uncalibrated** (§5) — needs an identity×length
+  false-positive curve before quantitative use at scale.
+- **Species resolution is section-level.** Top hits span *A. alternata/brassicae/
+  arborescens/tenuissima* — i.e. *Alternaria* sect. *Alternaria*, not a species; the
+  query is indistinguishable from public complex members at this fragment length.
+- **Reproducibility.** Remote nt BLAST with `-max_target_seqs 1` is non-deterministic
+  and does not guarantee the best hit (a known BLAST pitfall); species-level calls
+  can drift run-to-run. nt confirmation establishes *fungal/phylum*, not residency.
+- **On host-filtering.** Foreign fungal DNA surviving into Logan shows these *raw
+  reads* were not host-filtered before SRA upload; it says nothing about GBI's
+  released *assemblies* (Logan is built from raw reads). Do not over-read it.
+- **Sensitivity floor.** Logan drops the lowest-coverage content; the SRA-reads path
+  is the sensitive backup for anything marginal.
 
 ---
 
