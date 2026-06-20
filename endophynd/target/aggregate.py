@@ -94,22 +94,32 @@ def write_summary(
     return rows
 
 
+def _result_labels(results: list[TargetResult]) -> list[str]:
+    """Unique, filesystem-safe label per result. Same accession under different
+    sources (e.g. logan + sra) would otherwise collide on columns/filenames, so
+    disambiguate those by appending the source."""
+    from collections import Counter
+    n = Counter(r.accession for r in results)
+    return [r.accession if n[r.accession] == 1 else f"{r.accession}__{r.source.value}"
+            for r in results]
+
+
 def write_presence_matrix(
     results: list[TargetResult],
     query_ids: list[str],
     path: str | Path,
 ) -> None:
-    """Wide matrix: query_id rows × accession columns, value = n hits."""
-    accessions = [r.accession for r in results]
+    """Wide matrix: query_id rows × target columns, value = n hits."""
+    labels = _result_labels(results)
     counts: dict[tuple[str, str], int] = {}
-    for r in results:
+    for label, r in zip(labels, results):
         for h in r.hits:
-            counts[(h.query_id, r.accession)] = counts.get((h.query_id, r.accession), 0) + 1
+            counts[(h.query_id, label)] = counts.get((h.query_id, label), 0) + 1
 
     with open(path, "w") as f:
-        f.write("query_id\t" + "\t".join(accessions) + "\n")
+        f.write("query_id\t" + "\t".join(labels) + "\n")
         for q in query_ids:
-            row = [str(counts.get((q, acc), 0)) for acc in accessions]
+            row = [str(counts.get((q, label), 0)) for label in labels]
             f.write(q + "\t" + "\t".join(row) + "\n")
 
 
@@ -117,12 +127,13 @@ def write_hit_fastas(results: list[TargetResult], out_dir: str | Path) -> int:
     """Per target, write the matching unitigs/reads to <out_dir>/<label>.hits.fa."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    labels = _result_labels(results)
     total = 0
-    for r in results:
+    for label, r in zip(labels, results):
         seq_hits = [h for h in r.hits if h.matched_seq]
         if not seq_hits:
             continue
-        path = out_dir / f"{r.accession}.hits.fa"
+        path = out_dir / f"{label}.hits.fa"
         seen: set[tuple[str, str]] = set()
         with open(path, "w") as f:
             for h in seq_hits:

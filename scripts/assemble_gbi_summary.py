@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
-"""Assemble the per-plant 3-class confidence scan into one summary TSV + a call."""
+"""
+Raw-alignment summary of the per-plant 3-class scan (alignment-only, BEFORE nt
+reverse-classification). The CANONICAL GBI result is hits/confirmed_hits.tsv →
+SUMMARY.tsv, which strips conserved mito/rRNA cross-matches via reverse-
+classification (D28). This script is a secondary view and writes
+SUMMARY.alignment_raw.tsv so it does not clobber the canonical SUMMARY.tsv.
+"""
 from __future__ import annotations
-import json, re, sys
+import argparse, json, re, sys
 from pathlib import Path
 
-RES = Path("results/alternaria_vs_gbi10")
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--res", default="results/alternaria_vs_gbi10")
+RES = Path(_ap.parse_args().res)
 PP = RES / "per_plant"
 plants = [l.split("\t") for l in (RES / "plants10.tsv").read_text().splitlines() if l.strip()]
 _HASH_RE = re.compile(r"of (\d+) distinct query hashes, (\d+) were found")
@@ -29,7 +37,7 @@ def call(alt_strict, alt_cf, fungal_n) -> str:
 
 
 hdr = ["run", "species", "family", "ALT_strict_hits", "ALT_breadth", "ALT_med_id",
-       "ALT_max_aln", "ALT_contain_frac", "ALT_approx_kb", "CTRL_strict_hits",
+       "ALT_max_aln", "ALT_contain_frac", "ALT_contain_hashes", "CTRL_strict_hits",
        "CTRL_contain_frac", "FUNGAL_n", "FUNGAL_members", "CALL"]
 rows = []
 for run, sp, fam in plants:
@@ -50,7 +58,7 @@ for run, sp, fam in plants:
         call(a["n_id95_aln500"], acf, fu.get("n_markers_hit", 0)),
     ])
 
-out = RES / "SUMMARY.tsv"
+out = RES / "SUMMARY.alignment_raw.tsv"
 with open(out, "w") as fh:
     fh.write("\t".join(hdr) + "\n")
     for r in rows:

@@ -21,16 +21,29 @@ if [ ! -f "$PP/$RUN.done" ]; then
   TMPD=$(mktemp -d)
   P1="$TMPD/mm.fifo"; P2="$TMPD/sm.fifo"
   mkfifo "$P1" "$P2"
-  ( minimap2 -ax asm20 -t 4 --secondary=no "$REF" "$P1" 2>"$PP/$RUN.mm2.err" \
+  # pipefail inside the subshell so a minimap2 failure (not just samtools) is caught.
+  ( set -o pipefail; minimap2 -ax asm20 -t 4 --secondary=no "$REF" "$P1" 2>"$PP/$RUN.mm2.err" \
       | samtools view -F 4 - > "$SAM" ) & MM=$!
   ( sourmash sketch dna -p k=31,scaled=1000 "$P2" -o "$SIG" --name "$RUN" 2>"$PP/$RUN.sm.err" ) & SM=$!
   aws s3 cp "s3://logan-pub/u/$RUN/$RUN.unitigs.fa.zst" - --no-sign-request 2>"$PP/$RUN.aws.err" \
     | zstdcat | tee "$P1" > "$P2"
-  RC_AWS=${PIPESTATUS[0]}
-  wait $MM; wait $SM
+  STREAM_RC=$?            # set -o pipefail (top of script) → non-zero if aws/zstdcat/tee failed
+  wait "$MM"; MM_RC=$?
+  wait "$SM"; SM_RC=$?
   rm -rf "$TMPD"
-  if [ "$RC_AWS" = "0" ]; then touch "$PP/$RUN.done"; else echo "STREAM FAILED $RUN (aws rc=$RC_AWS)"; fi
+  if [ "$STREAM_RC" = "0" ] && [ "$MM_RC" = "0" ] && [ "$SM_RC" = "0" ]; then
+    touch "$PP/$RUN.done"
+  else
+    # CRITICAL: never cache or profile a failed/partial stream — that would read as
+    # a false "no signal". Remove partial outputs so a rerun re-streams cleanly.
+    echo "STREAM FAILED $RUN (stream=$STREAM_RC minimap2/samtools=$MM_RC sourmash=$SM_RC) — not caching" >&2
+    rm -f "$SAM" "$SIG"
+    exit 1
+  fi
 fi
+
+# Profiling/containment run ONLY when the stream completed (.done exists).
+if [ ! -f "$PP/$RUN.done" ]; then echo "no .done for $RUN — skipping profile" >&2; exit 1; fi
 
 python3 scripts/confidence_profile.py --ref "$REF" --sam "$SAM" \
   --json "$PP/$RUN.profile.json" --alt-hits-out "$PP/$RUN.alt_unitigs.txt" >/dev/null

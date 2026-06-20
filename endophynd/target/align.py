@@ -72,9 +72,13 @@ def build_stream_command(target: Target, to_fasta: bool, threads: int = 4) -> st
         return f"aws s3 cp {s3} - --no-sign-request | zstdcat"
 
     if target.source == Source.SRA:
-        # fasterq-dump streams interleaved FASTQ to stdout.
+        # fasterq-dump streams FASTQ to stdout. --skip-technical drops adapter/
+        # technical spots (consistent with the discovery Snakefile).
+        # NOTE: --split-spot assumes paired/short reads; long-read (PacBio/ONT)
+        # runs are not yet platform-distinguished on this targeted path — the
+        # discovery Snakefile's retrieve_and_bait is platform-aware (D25).
         base = (
-            f"fasterq-dump --stdout --split-spot --threads {threads} "
+            f"fasterq-dump --stdout --skip-technical --split-spot --threads {threads} "
             f"{target.accession}"
         )
         if to_fasta:

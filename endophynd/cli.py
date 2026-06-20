@@ -178,6 +178,14 @@ def target(
         _TARGET_DEFAULTS["minimap2_preset"], "--minimap2-preset",
         help="minimap2 -x preset (provisional pending mock-community calibration).",
     ),
+    max_target_seqs: int = typer.Option(
+        _TARGET_DEFAULTS["max_target_seqs"], "--max-target-seqs",
+        help="blastn: max query records reported per dataset read.",
+    ),
+    evalue: float = typer.Option(
+        _TARGET_DEFAULTS["evalue"], "--evalue",
+        help="blastn e-value cutoff.",
+    ),
     jobs: int = typer.Option(
         _TARGET_DEFAULTS["jobs"], "--jobs", "-J",
         help="Parallel targets to stream at once.",
@@ -221,6 +229,8 @@ def target(
             min_aln_len=min_aln_len,
             min_query_cov=min_query_cov,
             minimap2_preset=minimap2_preset,
+            max_target_seqs=max_target_seqs,
+            evalue=evalue,
             jobs=jobs,
             threads=threads,
             check_logan=not no_logan_check,

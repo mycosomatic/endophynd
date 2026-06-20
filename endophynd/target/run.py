@@ -142,7 +142,7 @@ def run_targeted_search(
 
     summary = {
         "tool": "endophynd target",
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "git_commit": _git_sha(),
         "query": {
             "path": query_path,

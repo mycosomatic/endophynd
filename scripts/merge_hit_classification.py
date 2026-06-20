@@ -4,9 +4,12 @@ Merge alignment metadata + nt reverse-classification into the hand-checkable
 results collection: a master confirmed_hits.tsv and per-plant annotated FASTAs.
 """
 from __future__ import annotations
+import argparse
 from pathlib import Path
 
-RES = Path("results/alternaria_vs_gbi10")
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--res", default="results/alternaria_vs_gbi10")
+RES = Path(_ap.parse_args().res)
 HITS = RES / "hits"
 
 # Coarse fungal-name keywords (for a hint only; the nt_organism column is the truth).

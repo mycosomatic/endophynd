@@ -28,8 +28,14 @@ from endophynd.target.models import QuerySpec, QueryType
 from endophynd.target.query import read_fasta_lengths
 
 FLOOR_ID, FLOOR_ALN = 0.80, 200
-STRICT_ID, STRICT_ALN = 0.95, 500     # "our organism" genome-presence call
-FUNGAL_ID, FUNGAL_ALN = 0.85, 200     # "any fungus" marker-presence call
+# "Our-organism present" call. ALN lowered to 200 (D28): low-COVERAGE query DNA
+# assembles into only short Logan unitigs, so ≥500 bp falsely returned 0/10.
+# This bar is POST-HOC and UNCALIBRATED — defensible only with reverse-classification
+# (every hit nt-confirmed); calibrate against a false-positive model before
+# quantitative use at scale. The canonical, reverse-classified result lives in
+# hits/confirmed_hits.tsv, not here (this profile is alignment-only).
+STRICT_ID, STRICT_ALN = 0.95, 200
+FUNGAL_ID, FUNGAL_ALN = 0.85, 200     # "any fungus" marker probe (NOTE: detector was unreliable — D28)
 
 
 def _union_bp(intervals):
