@@ -12,9 +12,21 @@ bait:
   seed_ref: "resources/rrna_seeds.fa"   # conserved rDNA k-mer seed set
   k: 31
   hdist: 1
-  minlength: 50                          # discard reads shorter than this after baiting
+  minlength: 100                         # discard reads shorter than this after baiting (100 suits PE151 SRA reads)
 
 bait_threads: 4                          # threads for bbduk; raise on multi-core machines
+
+# Per-platform bait overrides applied at runtime in retrieve_and_bait.
+# minlength and minavgquality are set in the Snakefile shell block; these
+# are documentation of the defaults — edit the Snakefile to change them.
+#
+# platform       minlength  minavgquality  paired   classification ceiling
+# ---------------------------------------------------------------------------
+# illumina         100          —           yes      species (UNITE/SILVA)
+# pacbio-hifi      500         Q30          no       species (Q30-40 CCS)
+# pacbio-clr       500         Q15          no       genus only (Q10-15)
+# ont              500         Q15          no       genus-species (Q10-30, variable)
+#                                                    flag species calls if median Q<20
 
 # --- Locus annotation (ITSx) ---
 itsx:

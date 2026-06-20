@@ -172,7 +172,7 @@ bugs:
    meant "detector blind," not "no fungi." **Fix:** panel dropped; nt
    reverse-classification is the working specificity layer.
 
-**Lesson (logged as D23):** for low-abundance recovery from Logan, gate *low* and
+**Lesson (logged as D28):** for low-abundance recovery from Logan, gate *low* and
 *confirm by reverse-classification*; never trust a bare zero without a validated
 positive control.
 

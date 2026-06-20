@@ -3,7 +3,7 @@
 Collect every corrected ALT-class hit from the GBI scan SAMs into a master FASTA
 (for reverse-classification) and a metadata TSV.
 
-Corrected thresholds (see D23): low-abundance endophyte DNA assembles into short
+Corrected thresholds (see D28): low-abundance endophyte DNA assembles into short
 Logan unitigs, so we keep hits >= --min-id identity over >= --min-aln bp (default
 0.95 / 200), then confirm each by BLAST vs nt downstream.
 """

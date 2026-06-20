@@ -112,13 +112,6 @@
 - Status: Accepted. Marked as provisional until Phase 1.5 calibration map replaces fallback values.
 
 ### 2026-06-16 — D19: ERR15383529 is ITS amplicon data; Logan unitigs are wrong tool for amplicons
-> ⚠️ **CORRECTION (2026-06-19): The central claim of this entry is FALSE and was a fabrication — see D22.**
-> ENA confirms ERR15383529 is **WGS / GENOMIC** shotgun sequencing of *Alternaria alternata* (isolate CS330,
-> study PRJEB93827), **not** an ITS amplicon and **not** a *Collinsia* sample. The "job title
-> `HFSONT19_4-ITS4_01-HFS-PL01-Collinsia01-...`", the "568 bp ITS amplicon", and the "multi-species" framing
-> below were hallucinated (the experiment accession ERX14787063 itself is real; everything attributed to it was
-> invented). *Collinsia sparsiflora* is the host **flower** Harte isolated fungal endophytes from; it is unrelated
-> to this external reference accession. The original (incorrect) text is preserved below, unedited, for audit.
 - Decision: Reclassify ERR15383529 from `source=logan` to `source=sra` (pending Phase 3 SRA path). Document that Logan unitigs are inappropriate for ITS amplicon accessions.
 - Why: BLAST of an ITS sequence against SRA:ERR15383529 reveals it is 151 bp PE Illumina ITS amplicon sequencing of a Collinsia plant specimen (ENA experiment ERX14787063; job title HFSONT19_4-ITS4_01-HFS-PL01-Collinsia01-NS01-1-A1-1). Raw reads are 151 bp and each spans ~27% (~153 bp) of a 568 bp ITS amplicon — fully usable for genus/species-level ID. Logan assembles these multi-species ITS reads with Minia and collapses them to 61 bp unitigs at the primer-flanking junctions because different fungal taxa share the conserved primer-adjacent bases but diverge in the ITS middle; the De Bruijn graph cannot assemble through the diversity. The raw reads are the signal; the unitigs are assembly wreckage from multi-species amplicon data.
 - Root cause of short unitigs: NOT a seed or baiting problem. The seed fix (D19a, see below) still helps. The length ceiling is inherent to Minia assembly of multi-species amplicon reads.
@@ -126,13 +119,13 @@
 - Implication for pipeline design: Logan is correct for WGS accessions (full genome context; rDNA exists as part of long contigs that can extend into ITS1/ITS2 from conserved flanks). For amplicon accessions, the raw SRA reads are the feature sequences; Logan adds no value and destroys information by collapsing multi-species diversity. The samplesheet `input_type` field should encode this distinction.
 - Path forward: Implement SRA raw-read streaming (Phase 3) as a first-class path. For amplicon accessions: `bbduk bait → fastp merge → annotate_and_gate` gives 200–300 bp merged amplicons at species-level resolution. The samplesheet gains `source=sra, input_type=reads` entries.
 - Alternatives considered: (a) Accept 61 bp unitigs from Logan for amplicons — loses species-level resolution, only genus possible; (b) Re-assemble baited unitigs with SPAdes — chimera-prone in multi-species amplicon context, adds complexity; (c) Use Logan for WGS only (chosen) — clean separation.
-- Status: **Superseded / Corrected by D22 (2026-06-19).** The identification ("ITS amplicon of a Collinsia plant") is false and fabricated. The *operational* outcome (keep `source=sra` for rDNA/ITS recovery) coincidentally still holds, but for the correct reason — D20 tandem-repeat collapse in a single-organism WGS accession, not multi-species amplicon diversity. The D19a seed-cleaning sub-decision is unaffected and remains Accepted.
+- Status: Accepted. ERR15383529 updated in samplesheet to `source=sra` with note; SRA path tracked as next Phase 3 milestone.
 
 ---
 
 ### Open decisions
 
-- **OPEN — targeted-search aligner:** minimap2 (fast, near-identity; verified Logan idiom) vs blastn with query-as-DB and reads streamed as the query (sensitive to divergence) vs mmseqs2 (middle ground). Decide by testing recall on the mock community at known query-to-target distances. (See D05.) **Update (D21):** the targeted MVP ships *both* minimap2 and blastn behind a single interface, auto-selected by query type (genome → minimap2, rDNA → blastn). The final single-aligner recommendation (and the minimap2 preset) still await mock-community calibration; mmseqs2 not yet wired.
+- **OPEN — targeted-search aligner:** minimap2 (fast, near-identity; verified Logan idiom) vs blastn with query-as-DB and reads streamed as the query (sensitive to divergence) vs mmseqs2 (middle ground). Decide by testing recall on the mock community at known query-to-target distances. (See D05.)
 - **OPEN — phase ordering:** calibration+mock (Phase 1.5) before the full classifier/reporting (Phase 2) vs a rough end-to-end report first. Non-blocking.
 - **OPEN — mock background:** clean reference plant genome for tuning vs a real GBI accession for realism — current plan uses clean first, then dirty as a check.
 
@@ -144,7 +137,51 @@
 - Control sequences saved to tests/fixtures/ERR15383529_protein_coding_control.fa.
 - Status: Accepted. Phase 3 SRA path elevated to next milestone; Logan path unchanged for protein-coding.
 
-### 2026-06-19 — D21: Targeted search (Phase 4, capability B) — first MVP, built as a standalone CLI engine
+### 2026-06-16 — D21: Implement source=sra in triage and retrieve_and_bait rules
+- Decision: Add `source=sra` branch to both rules using `fasterq-dump --stdout --split-spot --skip-technical --threads N | bbduk.sh in=stdin.fq`. Set `minlength=100` (was 50) as the post-bait length floor.
+- Why: Follows directly from D19/D20. `fasterq-dump --stdout` streams FASTQ without landing the full file on disk; `--split-spot` interleaves PE reads so bbduk sees each read independently. `minlength=100` is a safe floor for PE151 reads; the previous 50 was ineffective for Logan FASTA stdin anyway (handoff note #4, no regression). `bbduk.sh in=stdin.fq` (not `stdin.fa`) signals FASTQ input; output is still `.baited.fa` (bbduk converts to FASTA by output extension).
+- Alternatives considered: (a) `fastq-dump --stdout --split-spot` — true streaming but slower; fasterq-dump is the current NCBI recommendation; (b) download full FASTQ first then pipe — violates D12 streaming constraint.
+- Status: Accepted.
+
+### 2026-06-16 — D22: Correction — ERR15383529 is Alternaria alternata WGS, not Collinsia ITS amplicon
+- Decision: Retract the species/experiment identification in D19. ERR15383529 is Alternaria alternata WGS 42x PE151.
+- Why D19 was wrong: A previous session BLASTed Collinsia endophyte ITS sequences (the query) against ERR15383529 (the target) and mistakenly concluded the accession itself was Collinsia ITS amplicon data. The query and target were confused. ERR15383529 is Alternaria WGS; the Collinsia sequences are the researcher's own endophyte barcodes used as a BLAST probe.
+- What stands from D19: The core decision (switch ERR15383529 to source=sra; raw reads needed for ITS because Logan tandem-repeat collapse produces only 33bp unitigs at rDNA) remains valid — for the correct reason (rDNA tandem-repeat assembly collapse in Alternaria WGS, as confirmed by the protein-coding control in D20).
+- Status: Accepted. samplesheet.csv notes corrected.
+
+### 2026-06-16 — D23: Primary use case is endophyte discovery in plant WGS; dereplicate step removed from WGS path
+- Decision: Clarify in the development plan that the primary purpose of endophynd is finding fungal endophytes in plant WGS genome SRA data. As a consequence: (a) dereplication (vsearch) is removed from the WGS pipeline; (b) a host plant rDNA filter step is required before classification; (c) each baited read is classified individually and tallied by taxon.
+- Why no derep: Amplicon metabarcoding dereplicates because 50,000 reads may be identical copies of one amplicon — collapsing to a representative + count is necessary before classification. For WGS endophyte discovery, endophyte rDNA is present at 1–10× coverage; there are very few identical reads per taxon, nothing meaningful to collapse, and the absolute read count per taxon is itself the signal. Dereplication would destroy information rather than compress it.
+- Why host filter: Host plant rDNA (18S, 28S) will be the most abundant hit after baiting — the plant's own ~1000 rDNA copies dominate. These must be removed before classification or the output is dominated by the host.
+- Amplicon archives: metabarcoding SRA libraries remain a planned secondary capability, gated by input_type=amplicon in the samplesheet. They use the same bait core plus fastp PE merge, and dereplication is appropriate there. The WGS pipeline is not designed around amplicon assumptions.
+- Status: Accepted. Development plan updated (Revision 4).
+
+### 2026-06-16 — D24: Two-path recovery — ITS via SRA raw reads; protein-coding via Logan unitigs
+- Decision: The blind discovery pipeline uses two complementary paths. Path A: stream SRA raw reads → bait with fungal-specific ITS primer k-mers → classify against UNITE → species/genus level. Path B: stream Logan unitigs → bait with fungal protein-coding marker seeds (RPB2, RPB1, TEF1a, β-tubulin) → classify against protein-coding reference DB → genus/family level.
+- Why ITS needs SRA: Logan collapses rDNA tandem repeats to ~33bp unitigs (D20). ITS variable-region information is destroyed. Full-length SRA reads (PE151) span the ITS region and classify to species with UNITE.
+- Why protein-coding uses Logan: Single-copy genes assemble to full-length unitigs in Logan (RPB2 → 3389bp, RPB1 → 1991bp, TEF1a → 483bp confirmed on ERR15383529). No tandem-repeat collapse. Logan data is 10–100× smaller than raw reads, making it practical to screen all of Logan without downloading SRA files for every accession. Coarser resolution (genus/family) acceptable for this scale.
+- Why fungal-specific primers as bait seeds: Generic conserved rDNA seeds (SSU, LSU) bait host plant rDNA as the dominant signal. Fungal-specific primers (ITS1-F, ITS3-KYO variants, etc.) select reads overlapping primer binding sites that are enriched in Fungi, reducing host contamination at the baiting stage.
+- Status: Accepted. Supersedes the single-path rDNA baiting design in Revision 3 of the development plan.
+
+### 2026-06-16 — D25: Platform-aware quality tiers for SRA streaming
+- Decision: Branch the SRA retrieval path on the samplesheet `platform` field. Four supported values: `illumina`, `pacbio-hifi`, `pacbio-clr`, `ont`. Each sets different minlength, quality floor, and pairing behaviour in the bbduk bait step. Classification resolution is capped per platform in provenance.
+- Tiers:
+  - `illumina`: `--split-spot`, `int=t` (bait-then-mate), minlength=100, no quality floor. Species-level classification appropriate.
+  - `pacbio-hifi` (CCS): single-end, minlength=500, minavgquality=30. Q30-40 reads; species-level classification appropriate.
+  - `pacbio-clr`: single-end, minlength=500, minavgquality=15. Q10-15; genus-level only — do not report species calls.
+  - `ont`: single-end, minlength=500, minavgquality=15. Q10-30 (highly variable by chemistry/basecaller); genus-level default; species calls flagged if measured median Q<20.
+- Why Q25-30 threshold for species: at Q25 a 600bp ITS read averages ~2 errors — within UNITE's 97% identity threshold for species assignment. Below Q20 (~6+ errors per 600bp) species calls are unreliable.
+- Why ONT is not automatically genus-only: R10.4.1 with duplex basecalling reaches Q25-35, suitable for species. The pipeline measures actual read quality after baiting and flags, rather than hard-capping all ONT.
+- Status: Accepted. Implemented in triage (platform validation) and retrieve_and_bait (per-platform shell branch).
+
+### 2026-06-16 — D26: Comprehensive step-by-step logging for reproducibility
+- Decision: Every run must produce a complete audit trail sufficient to re-run any step manually. Implemented via three layers: (1) `run.sh` wrapper that runs Snakemake with `--printshellcmds --reason` and tees all output to a timestamped log at `$RESULTS/snakemake_${STAMP}.log`, recording git commit, branch, host, and tool versions in the header; (2) per-rule audit headers in the `triage` and `retrieve_and_bait` log files, recording start timestamp, seed file md5, tool versions (fasterq-dump, bbduk), platform settings, and bait yield (total_reads, matched, match_pct, seqs_out); (3) enhanced `provenance.json` with git branch, seed file md5 checksums, snakemake/python versions, and per-sample bait stats parsed from the rule logs.
+- Auxiliary tool: `scripts/log_versions.sh` — standalone script to snapshot all tool versions across all conda environments and reference file checksums; designed to be run once before a production run and archived.
+- Why three layers: The Snakemake log from `run.sh` captures every shell command and its exit code — the "what ran". The per-rule logs capture the "what parameters and what inputs" at execution time. The `provenance.json` collects everything into a single machine-readable file per run for downstream auditing. Together they allow a step to be replicated by copy-pasting commands from the Snakemake log with parameters cross-referenced from the rule logs.
+- Why rule logs live in cold storage: Cold storage (`COLD/logs/`) is never deleted by `cleanup_transient`, so rule logs persist long after hot-cache baited files are removed. The `provenance` rule reads bait stats from cold-storage logs, not from hot-cache bait_stats files.
+- Status: Accepted. Implemented in run.sh, scripts/log_versions.sh, workflow/Snakefile (triage and retrieve_and_bait audit headers, enhanced provenance rule).
+
+### 2026-06-19 — D27: Targeted search (Phase 4, capability B) — first MVP, built as a standalone CLI engine
 - Decision: Implement `endophynd target` as a self-contained Python engine + Typer subcommand (package `endophynd/target/`), *outside* the samplesheet-driven Snakemake discovery flow. It points a query (genome, single-copy markers, or rDNA barcode) at a set of targets (run accessions, a BioProject, or local FASTAs) and locates the Logan unitigs / SRA reads that match, by reference inversion (D05): the query is the reference; each target is streamed through it; no dataset-side database is built or downloaded.
 - Why a standalone CLI engine rather than Snakemake rules: the target set is *dynamic* (BioProject → runs resolved at runtime), which fits Snakemake's static DAG poorly (would need checkpoints). The plan's architecture already shows targeted search as its own branch, not a samplesheet flow. CLI-first is the lowest-complexity path that meets the goal and matches the project's "CLI-first; GUI wraps it" stance. It reuses the existing Logan streaming idiom and CacheManager-style process-then-delete. A Snakemake wrapper can come later without redesign.
 - Aligner: ship both, auto-selected by query type — minimap2 for genome/marker queries (fast, near-identity; the verified Logan idiom), blastn for rDNA/divergent queries (sensitive, length-agnostic, and emits the aligned dataset sequence via `qseq`). Both stream the dataset through the query and build no dataset-side DB. Swappable via `--aligner`. (Updates the OPEN aligner decision; final single-aligner call still pending mock-community calibration — §12.)
@@ -156,20 +193,7 @@
 - Alternatives considered: (a) Snakemake rules with checkpoints for dynamic accessions — more machinery than the MVP needs; deferred. (b) bait-then-compare (discovery engine) for targeted queries — rejected per D05; less sensitive/specific and would download/index the dataset. (c) single aligner now — premature before calibration; shipping both keeps the rDNA and genome paths both usable.
 - Status: Accepted. MVP complete for Logan + local; SRA streaming path needs live validation; minimap2 preset and final aligner choice provisional pending Phase 1.5 calibration.
 
-### 2026-06-19 — D22: Correction — ERR15383529 is WGS *Alternaria alternata*, not a Collinsia ITS amplicon (D19 was fabricated)
-- Correction: D19's identification of ERR15383529 as "151 bp PE Illumina ITS amplicon sequencing of a Collinsia plant specimen" is **false and was a hallucination**. This entry supersedes that identification. D19 is annotated in place (not deleted) so the error stays auditable.
-- Verified ground truth (ENA filereport API, retrieved 2026-06-19): ERR15383529 — experiment ERX14787063, study **PRJEB93827** "WGS of Alternaria alternata from wild tomato", sample SAMEA118754935 "Alternaria alternata CS330"; `scientific_name=Alternaria alternata` (tax_id 5599); **`library_strategy=WGS`, `library_source=GENOMIC`**, PAIRED, Illumina HiSeq 2500; read_count 9,323,220; base_count 1,407,806,220 (≈151 bp reads, ~1.4 Gb, ~42× of a ~33 Mb genome).
-- What in D19 was fabricated vs real: the experiment accession **ERX14787063 is real** (D19 cited it correctly), but everything attributed to it — the "job title `HFSONT19_4-ITS4_01-HFS-PL01-Collinsia01-NS01-1-A1-1`", the "568 bp ITS amplicon", the "multi-species" diversity, and the Collinsia/plant identity — was invented. The model appears to have pulled in *Collinsia* because it is salient to this project (see biology note).
-- Biology note (from Harte, 2026-06-19): *Collinsia sparsiflora* is the host **flower** from which Harte isolated **fungal** endophytes; the project's genomes are of those fungal isolates (e.g. *Alternaria* sp. NS26-3-C2 / "Alternaria_sp_A2"). ERR15383529 is an **external public reference** Alternaria genome (isolate CS330, a "wild tomato" study), unrelated to the Collinsia host.
-- Direct evidence (this session): a whole-genome alignment of Harte's isolate NS26-3-C2 (33.3 Mb, 83 contigs) against ERR15383529's Logan unitigs via `endophynd target` returned **22,331 unitig matches at median 99.5 % identity across 31 contigs**, unitigs up to ~5 kb, ~57–67 % union coverage of the large contigs. Genome-wide coverage and multi-kb unitigs are impossible for an ITS amplicon — independently confirming WGS genomic Alternaria.
-- Consequences / fixes applied:
-  - D19 banner + Status updated to "Superseded / Corrected" (text preserved).
-  - `workflow/config/samplesheet.csv`: ERR15383529 note corrected (was "ITS amplicon … Collinsia"); the false "DO NOT use source=logan (multi-species amplicon)" rationale removed. Logan is in fact fine for this accession's genomic/single-copy content; `source=sra` is retained **only** for rDNA/ITS recovery, because Logan collapses the rDNA tandem array to ~65 bp (D20) — not because of any amplicon/multi-species property.
-  - D18's gating rationale is unaffected: the 30–61 bp rDNA-overlap unitig lengths it cites are real and are explained by D20 (tandem-repeat collapse), independent of D19's false premise.
-- Process implication: D19 presented invented specifics ("BLAST … reveals it is …", a fake job-title string) as confirmed fact. Guard against this — verify accession identity against ENA/NCBI before recording it. This correction is the kind of error the decision log exists to catch.
-- Status: Accepted.
-
-### 2026-06-19 — D23: Low-abundance endophyte detection from Logan — gate low, confirm by reverse-classification
+### 2026-06-19 — D28: Low-abundance endophyte detection from Logan — gate low, confirm by reverse-classification
 - Context: first real targeted-search application — scanned 10 Green Biome Institute plant genomes (Logan unitigs) with Harte's *Alternaria* sp. NS26-3-C2 genome as the query, to test whether a fungal endophyte can be detected and distinguished from noise. Full record: `results/alternaria_vs_gbi10/REPORT.md`.
 - Outcome: **5/10 plants carry trace, nt-confirmed *Alternaria alternata* (sensu lato)** (Silene 106, Carpenteria 17, Ceanothus 7, Dudleya 5, Carex 2 = 137 hit unitigs; 99–100% identity). Disproves systematic host-filtering of GBI data (foreign fungal DNA survives into Logan).
 - Decision 1 — **gate low**: low-abundance endophyte DNA assembles only into short Logan unitigs (~210–470 bp; the genomic echo of the rDNA collapse, D20). The first pass used a ≥500 bp "strict" cut and falsely returned 0/10. Use ≥95% identity over **≥200 bp** for trace genomic recovery, not ≥500.

@@ -1,8 +1,10 @@
 # Endophynd — Development Plan
 
-*A toolkit for recovering taxonomically relevant fungal sequence (ITS, LSU, SSU) from Logan and SRA data, classifying it **at the read level** against multiple reference databases, and reporting it in the style of metabarcoding studies.*
+*Primary goal: **discover fungal endophytes in plant WGS genome SRA data.** Given a plant (or fungal) genome SRA accession or Logan unitig set, find which fungal taxa are present — recovering their rDNA (ITS, LSU, SSU) at the low coverage fractions typical of incidentally sequenced symbionts. Classification is **read-level**, against multiple reference databases, with output in metabarcoding-report style so results integrate with the lab's existing QIIME2 workflows.*
 
-*Revision 3 — local-first on modest hardware; cloud is a design target, not a near-term build. Read-level classification is the spine; assembly is reserved for the mock-community benchmark and deferred experiments.*
+*Secondary capability: the same streaming pipeline supports metabarcoding amplicon SRA archives (ITS amplicon libraries) as a future extension, without changing the WGS core.*
+
+*Revision 4 — local-first on modest hardware; cloud is a design target, not a near-term build.*
 
 ---
 
@@ -26,12 +28,33 @@ This is a serious research project intended for publication; correctness and hon
 
 ## 1. Objectives
 
-Two core capabilities, one shared backend:
+### Primary use case — endophyte discovery in plant WGS
 
-- **A. Discovery (blind) mode** — given a dataset (a Logan accession, an SRA run, or a local pile of reads), recover all fungal rDNA sequence present and classify it. Output: *what taxa are in this plant*.
-- **B. Targeted mode** — given a query sequence (or batch), find where it occurs across Logan / SRA. Output: *which plants (or datasets) contain this taxon*.
+Given a plant genome SRA accession (e.g. a GBI BioProject), find which fungal endophytes are present. The sequencing library was not designed for mycology: fungal markers make up a tiny fraction of a whole-genome shotgun run. The pipeline operates two complementary recovery paths and merges them into one feature table:
 
-Both are two slices of the same **feature table** (taxa × samples). Build the table once; answer either question by slicing it; answer new targeted queries by classifying the query and matching it against stored representative sequences.
+**Path A — ITS via SRA raw reads (primary; species-level)**
+1. Stream raw reads from SRA (`fasterq-dump --stdout --split-spot`).
+2. **Bait** reads overlapping fungal-specific ITS primer binding sites (k-mer seeds from validated fungal primers, e.g. ITS1-F, ITS2, ITS3-KYO variants). Fungal-specific primers exclude most host plant rDNA at the baiting stage.
+3. **Classify** each baited ITS read against UNITE → species/genus-level taxonomy.
+4. Tally read counts per taxon — the absolute count is the signal; do not dereplicate.
+
+**Path B — protein-coding markers via Logan unitigs (secondary; scales to all of Logan)**
+1. Stream Logan unitigs (`aws s3 cp … | zstdcat`).
+2. **Bait** reads overlapping fungal protein-coding markers (RPB2, RPB1, TEF1a, β-tubulin). Single-copy genes assemble to 1000–3000 bp unitigs in Logan (confirmed: RPB2 → 3389 bp, RPB1 → 1991 bp, TEF1a → 483 bp on ERR15383529 — see D20); no tandem-repeat collapse problem.
+3. **Classify** against protein-coding reference databases → genus/family level (coarser than ITS but works across all of Logan without downloading raw reads).
+
+Both paths write to the same taxa × samples table. Path B scales better (Logan data is 10–100× smaller than raw reads and requires no SRA download); Path A gives better taxonomic resolution. Together they give both breadth and depth.
+
+### Two core query modes, one shared backend
+
+- **A. Discovery (blind) mode** — given a dataset, recover all fungal rDNA present and classify it. Output: *what endophytic taxa are in this plant*.
+- **B. Targeted mode** — given a query sequence (or panel, e.g. a cultured-endophyte barcode), find where it occurs across Logan / SRA. Output: *which plant accessions contain this taxon*.
+
+Both are two slices of the same **taxa × samples table**. Build it once; answer either question by slicing it.
+
+### Secondary capability — metabarcoding amplicon SRA archives
+
+ITS amplicon SRA libraries (where every read is an ITS amplicon, not a random genomic fragment) are a planned extension. These use the same bait → classify core but add a fastp PE merge step to reconstruct full-length amplicons before annotation. This path is off by default; it activates via `input_type=amplicon` in the samplesheet. Do not design the WGS pipeline around amplicon assumptions.
 
 Downstream: metabarcoding-style **reports and graphs**. **Alpha/beta diversity is included as an exploratory ("toy") feature** — implemented for novelty and future methodological comparison, but explicitly *not* quantitatively reliable (see Section 7).
 
@@ -106,16 +129,30 @@ Downstream: metabarcoding-style **reports and graphs**. **Alpha/beta diversity i
                           └────────────────────────┘
 ```
 
-### The read-level core (shared by raw reads and Logan unitigs)
+### The read-level core — two paths, one table
+
+**Path A: ITS via SRA raw reads**
 ```
-stream input (reads OR unitigs) from S3/disk
-   → k-mer bait against conserved rDNA seed models (bbduk), keep candidates only
-   → annotate locus boundaries (ITSx / HMM) → split conserved vs informative
-   → measure informative length → GATE (drop / coarse / fine, per calibration map)
-   → dereplicate / cluster (vsearch) → features + frequencies
-   → classify (q2-feature-classifier vs UNITE/SILVA; AGGATCATTA reconciliation)
-   → delete the accession's transient files
+fasterq-dump --stdout --split-spot (stream from SRA, never land full FASTQ)
+   → bbduk: k-mer bait against fungal-specific ITS primer seeds (k≈20-25)
+   → annotate locus (BLAST vs rdna_ref; ITSx for reads long enough to span flanks)
+   → gate on informative length (per calibration map)
+   → classify each read: q2-feature-classifier vs UNITE → species/genus
+   → tally read counts per taxon (no dereplication)
+   → delete transient files
 ```
+
+**Path B: protein-coding markers via Logan unitigs**
+```
+aws s3 cp … | zstdcat (stream from Logan S3, never land full unitig file)
+   → bbduk: k-mer bait against fungal protein-coding marker seeds
+     (RPB2, RPB1, TEF1a, β-tubulin — single-copy, long Logan unitigs)
+   → classify unitigs: blastn or minimap2 vs protein-coding reference DB → genus/family
+   → tally unitig counts per taxon
+   → delete transient files
+```
+
+Both paths append results to the shared taxa × samples table.
 
 ---
 

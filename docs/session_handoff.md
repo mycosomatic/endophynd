@@ -143,7 +143,7 @@ for specific baiting of rDNA; k=31 with hdist=1 (the bbduk default) is appropria
 ## Session 2026-06-19: Targeted search MVP (capability B, Phase 4) built
 
 Built `endophynd target` — the "point a query at a group of genomes and find the
-Logan unitigs / SRA reads that match" feature (D21).
+Logan unitigs / SRA reads that match" feature (D27).
 
 ### What landed
 - New package `endophynd/target/`: `models.py`, `resolve.py`, `query.py`,

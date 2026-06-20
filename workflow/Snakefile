@@ -46,6 +46,10 @@ def _sample_acc(wildcards):
     return _sample_field(wildcards, "accession", "")
 
 
+def _sample_platform(wildcards):
+    return _sample_field(wildcards, "platform", "illumina")
+
+
 # ---------------------------------------------------------------------------
 # Cache directories (resolved at runtime from cache.yml)
 # ---------------------------------------------------------------------------
@@ -127,10 +131,9 @@ rule all:
 # ---------------------------------------------------------------------------
 # Rule: triage
 # Pre-flight checks before committing to streaming:
-#   - Logan: verify accession looks like GCA_XXXXXXXXXX (format only for now;
-#     size check from logan-pub/stats parquet is deferred to Phase 1.5)
+#   - Logan: verify accession looks like SRR/ERR/DRR (format only; size check deferred to Phase 1.5)
 #   - local: verify the file exists
-#   - SRA: not yet implemented
+#   - SRA: verify accession looks like SRR/ERR/DRR (format only; no network call)
 # ---------------------------------------------------------------------------
 
 rule triage:
@@ -141,6 +144,7 @@ rule triage:
     params:
         source=lambda wildcards: _sample_source(wildcards),
         acc=lambda wildcards: _sample_acc(wildcards),
+        platform=lambda wildcards: _sample_platform(wildcards),
     log:
         COLD / "logs" / "triage" / "{sample}.log",
     conda:
@@ -150,6 +154,14 @@ rule triage:
         mkdir -p $(dirname {output.passed})
         mkdir -p $(dirname {log})
 
+        STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+        {{
+            echo "=== [triage] {wildcards.sample}  $STAMP ==="
+            echo "  source   : {params.source}"
+            echo "  acc      : {params.acc}"
+            echo "  platform : {params.platform}"
+        }} > {log}
+
         SOURCE="{params.source}"
         ACC="{params.acc}"
 
@@ -157,27 +169,47 @@ rule triage:
             # Basic accession format check: SRR/ERR/DRR run accessions.
             # Does NOT download; size check from logan-pub/stat parquet deferred to Phase 1.5.
             if echo "$ACC" | grep -qE '^(SRR|ERR|DRR)[0-9]+$'; then
-                echo "[triage] {wildcards.sample}: Logan $ACC format OK" | tee {log}
+                echo "[triage] {wildcards.sample}: Logan $ACC format OK" | tee -a {log}
             else
                 echo "[triage][WARN] {wildcards.sample}: '$ACC' doesn't look like a" \
-                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee {log}
+                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee -a {log}
             fi
 
         elif [ "$SOURCE" = "local" ]; then
             if [ -f "$ACC" ]; then
-                echo "[triage] {wildcards.sample}: local file $ACC exists" | tee {log}
+                echo "[triage] {wildcards.sample}: local file $ACC exists" | tee -a {log}
             else
-                echo "[triage][ERROR] {wildcards.sample}: local file not found: $ACC" | tee {log}
+                echo "[triage][ERROR] {wildcards.sample}: local file not found: $ACC" | tee -a {log}
                 exit 1
+            fi
+
+        elif [ "$SOURCE" = "sra" ]; then
+            # Validate accession format only — no network call.
+            if echo "$ACC" | grep -qE '^(SRR|ERR|DRR)[0-9]+$'; then
+                echo "[triage] {wildcards.sample}: SRA $ACC format OK" | tee -a {log}
+            else
+                echo "[triage][WARN] {wildcards.sample}: '$ACC' doesn't look like a" \
+                     "standard SRR/ERR/DRR accession — proceeding anyway" | tee -a {log}
             fi
 
         else
             echo "[triage][ERROR] source='$SOURCE' not supported." \
-                 "Use 'logan' or 'local'." | tee {log}
+                 "Use 'logan', 'local', or 'sra'." | tee -a {log}
             exit 1
         fi
 
-        echo "triage_ok source=$SOURCE acc=$ACC" > {output.passed}
+        # Platform validation — warn on unknown values so users catch typos early.
+        PLATFORM="{params.platform}"
+        case "$PLATFORM" in
+            illumina|pacbio-hifi|pacbio-clr|ont) ;;
+            *)
+                echo "[triage][WARN] {wildcards.sample}: platform='$PLATFORM'" \
+                     "not in (illumina|pacbio-hifi|pacbio-clr|ont) —" \
+                     "bait/quality settings will default to illumina" | tee -a {log}
+                ;;
+        esac
+
+        echo "triage_ok source=$SOURCE acc=$ACC platform=$PLATFORM" > {output.passed}
         """
 
 
@@ -185,19 +217,21 @@ rule triage:
 # Rule: retrieve_and_bait
 # Stream input → k-mer bait → write candidate rDNA reads only.
 #
-# Logan path (primary):
+# Logan path:
 #   aws s3 cp s3://logan-pub/u/<ACC>/<ACC>.unitigs.fa.zst - --no-sign-request
 #     | zstdcat
 #     | bbduk.sh in=stdin.fa ref=<seeds> outm=<baited.fa> k=31 hdist=1
 #
-# The whole unitig file is NEVER written to disk — only the small baited
+# SRA path:
+#   fasterq-dump <ACC> --stdout --split-spot --skip-technical
+#     | bbduk.sh in=stdin.fq ref=<seeds> outm=<baited.fa> k=31 hdist=1
+#
+# Both paths: the raw data is NEVER written to disk — only the small baited
 # output lands on the hot cache.  bbduk writes match statistics to
 # bait_stats.txt so discard rate is tracked as a QC metric.
 #
 # Local path (fixtures / pre-downloaded files):
 #   bbduk.sh in=<file> ref=<seeds> outm=<baited.fa> ...
-#
-# SRA path: Phase 3.
 # ---------------------------------------------------------------------------
 
 rule retrieve_and_bait:
@@ -209,6 +243,7 @@ rule retrieve_and_bait:
     params:
         source=lambda wildcards: _sample_source(wildcards),
         acc=lambda wildcards: _sample_acc(wildcards),
+        platform=lambda wildcards: _sample_platform(wildcards),
         seed_ref=config["bait"]["seed_ref"],
         k=config["bait"]["k"],
         hdist=config["bait"]["hdist"],
@@ -222,6 +257,22 @@ rule retrieve_and_bait:
         """
         mkdir -p $(dirname {output.baited})
         mkdir -p $(dirname {log})
+
+        STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+        {{
+            echo "=== [bait] {wildcards.sample} START $STAMP ==="
+            echo "  source    : {params.source}"
+            echo "  acc       : {params.acc}"
+            echo "  platform  : {params.platform}"
+            echo "  seed_ref  : {params.seed_ref}"
+            echo "  seed_md5  : $(md5sum {params.seed_ref} | cut -d' ' -f1)"
+            echo "  k         : {params.k}"
+            echo "  hdist     : {params.hdist}"
+            echo "  minlength : {params.minlength}"
+            echo "  threads   : {threads}"
+            echo "  bbduk     : $(bbduk.sh --version 2>&1 | grep BBTools | head -1 || echo unknown)"
+            echo ""
+        }} >> {log}
 
         SOURCE="{params.source}"
         ACC="{params.acc}"
@@ -260,19 +311,87 @@ rule retrieve_and_bait:
                 threads={threads} \
                 2>> {log}
 
+        elif [ "$SOURCE" = "sra" ]; then
+            PLATFORM="{params.platform}"
+
+            # Per-platform streaming and bait settings.
+            # Illumina (PE): --split-spot interleaves R1/R2; int=t tells bbduk
+            #   to treat pairs together (bait-then-mate: keep both reads if either
+            #   matches). minlength=100; no quality floor (Illumina Q30+ inherently).
+            # PacBio HiFi (CCS): single-end long reads, Q30-40. No split-spot.
+            #   minlength=500 to skip adapter fragments; minavgquality=30.
+            # PacBio CLR / ONT: single-end, error-prone (Q10-20). No split-spot.
+            #   minlength=500; minavgquality=15. Classification capped at genus in
+            #   provenance — do not report species-level calls from these platforms.
+            if [ "$PLATFORM" = "illumina" ]; then
+                SPOT_FLAG="--split-spot"
+                PAIR_ARG="int=t"
+                BAIT_MINLEN={params.minlength}
+                QUAL_ARG=""
+            elif [ "$PLATFORM" = "pacbio-hifi" ]; then
+                SPOT_FLAG=""
+                PAIR_ARG=""
+                BAIT_MINLEN=500
+                QUAL_ARG="minavgquality=30"
+            elif [ "$PLATFORM" = "pacbio-clr" ] || [ "$PLATFORM" = "ont" ]; then
+                SPOT_FLAG=""
+                PAIR_ARG=""
+                BAIT_MINLEN=500
+                QUAL_ARG="minavgquality=15"
+            else
+                echo "[bait][WARN] {wildcards.sample}: unknown platform '$PLATFORM'" \
+                     "— defaulting to illumina settings" >> {log}
+                SPOT_FLAG="--split-spot"
+                PAIR_ARG="int=t"
+                BAIT_MINLEN={params.minlength}
+                QUAL_ARG=""
+            fi
+
+            {{
+                echo "  fasterq-dump : $(fasterq-dump --version 2>&1 | head -1 || echo unknown)"
+                echo "  pair_arg     : ${{PAIR_ARG:-none}}"
+                echo "  qual_arg     : ${{QUAL_ARG:-none}}"
+                echo "  bait_minlen  : $BAIT_MINLEN"
+                echo ""
+            }} >> {log}
+
+            {{
+                fasterq-dump "$ACC" \
+                    --stdout \
+                    $SPOT_FLAG \
+                    --skip-technical \
+                    --threads {threads} \
+                | bbduk.sh \
+                    in=stdin.fq \
+                    $PAIR_ARG \
+                    ref={params.seed_ref} \
+                    outm={output.baited} \
+                    stats={output.bait_stats} \
+                    k={params.k} \
+                    hdist={params.hdist} \
+                    minlength=$BAIT_MINLEN \
+                    $QUAL_ARG \
+                    threads={threads}
+            }} 2>> {log}
+
         else
-            echo "[ERROR] source='$SOURCE' not yet implemented." \
-                 "Supported: logan, local. SRA support in Phase 3." >> {log}
+            echo "[ERROR] source='$SOURCE' not supported." \
+                 "Supported: logan, local, sra." >> {log}
             exit 1
         fi
 
-        # Warn (but don't fail) if bbduk found nothing — could be a real
-        # absence of rDNA, or a seed-set miss.  Gate stats log the rate.
+        # Summarize bait results; the summary line is parsed by the provenance rule.
         NSEQ=$(grep -c "^>" {output.baited} 2>/dev/null || echo 0)
-        echo "[bait] {wildcards.sample}: $NSEQ candidate sequences baited" >> {log}
+        TOTAL=$(awk '/^#Total/{{print $2}}' {output.bait_stats} 2>/dev/null || echo "?")
+        MATCHED=$(awk '/^#Matched/{{print $2}}' {output.bait_stats} 2>/dev/null || echo "?")
+        MATCH_PCT=$(awk '/^#Matched/{{print $3}}' {output.bait_stats} 2>/dev/null || echo "?")
+        STAMP_END=$(date -u +%Y%m%dT%H%M%SZ)
+        {{
+            echo "[bait] {wildcards.sample}: total_reads=$TOTAL matched=$MATCHED ($MATCH_PCT) seqs_out=$NSEQ"
+            echo "=== [bait] {wildcards.sample} END $STAMP_END ==="
+        }} >> {log}
         if [ "$NSEQ" = "0" ]; then
-            echo "[bait][WARN] {wildcards.sample}: 0 sequences baited — check" \
-                 "seed file and accession." >> {log}
+            echo "[bait][WARN] {wildcards.sample}: 0 sequences baited — check seed file and accession." >> {log}
         fi
         """
 
@@ -445,10 +564,14 @@ rule provenance:
             str(RESULTS / "{sample}" / "feature_table.stub.qza"),
             sample=SAMPLE_IDS,
         ),
+        bait_logs=expand(
+            str(COLD / "logs" / "bait" / "{sample}.log"),
+            sample=SAMPLE_IDS,
+        ),
     output:
         prov=RESULTS / "provenance.json",
     run:
-        import json, datetime, subprocess
+        import json, datetime, subprocess, hashlib, re
 
         def git_sha():
             try:
@@ -458,11 +581,73 @@ rule provenance:
             except Exception:
                 return "unknown"
 
+        def git_branch():
+            try:
+                return subprocess.check_output(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True
+                ).strip()
+            except Exception:
+                return "unknown"
+
+        def md5_file(path):
+            h = hashlib.md5()
+            try:
+                with open(path, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(65536), b""):
+                        h.update(chunk)
+                return h.hexdigest()
+            except Exception:
+                return "missing"
+
+        def parse_bait_log(log_path):
+            try:
+                text = Path(str(log_path)).read_text()
+                m = re.search(
+                    r'\[bait\]\s+\S+:\s+total_reads=(\S+)\s+matched=(\S+)\s+\((\S+)\)\s+seqs_out=(\S+)',
+                    text,
+                )
+                if m:
+                    return {
+                        "total_reads": m.group(1),
+                        "matched": m.group(2),
+                        "match_pct": m.group(3),
+                        "seqs_out": m.group(4),
+                    }
+            except Exception:
+                pass
+            return {"total_reads": "?", "matched": "?", "match_pct": "?", "seqs_out": "?"}
+
+        def tool_version(cmd):
+            try:
+                return subprocess.check_output(
+                    cmd, stderr=subprocess.STDOUT, text=True
+                ).strip().splitlines()[0]
+            except Exception:
+                return "unknown"
+
+        seed_ref = config["bait"]["seed_ref"]
+        its_primers = "resources/its_primers.fa"
+
+        bait_stats = {
+            sid: parse_bait_log(log_path)
+            for sid, log_path in zip(SAMPLE_IDS, input.bait_logs)
+        }
+
         prov = {
             "run_id": RUN_ID,
             "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
             "git_commit": git_sha(),
+            "git_branch": git_branch(),
+            "seed_checksums": {
+                seed_ref: md5_file(seed_ref),
+                its_primers: md5_file(its_primers),
+            },
+            "tool_versions": {
+                "snakemake": tool_version(["snakemake", "--version"]),
+                "python": tool_version(["python3", "--version"]),
+            },
             "samples": SAMPLE_IDS,
+            "bait_stats": bait_stats,
             "phase": "1-read-level-discovery",
             "note": (
                 "Phase 1: real Logan streaming + bbduk baiting. "

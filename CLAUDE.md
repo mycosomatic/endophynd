@@ -20,13 +20,13 @@ full design. See `docs/decisions.md` for the append-only decision log.
 - Log every significant decision in `docs/decisions.md`.
 
 ## Current phase
-Phase 4 — Targeted search MVP landed (Logan + local). Two threads remain open:
-(a) validate the targeted-search **SRA** streaming path on live data; (b) the
-original Phase 1/3 discovery **SRA** path in `rule retrieve_and_bait`.
+Phase 4 — Targeted search MVP landed (Logan + local). The discovery **SRA** path in
+`rule retrieve_and_bait` landed via parallel work (D21/D24/D25, platform-aware). Open:
+(a) live-test the targeted-search **SRA** path; (b) GBI low-abundance follow-ups (D28).
 
 **Status as of 2026-06-19:**
 - Phase 0 scaffold complete. Logan discovery path functional for unitigs.
-- **Targeted search (capability B, D21) built**: `endophynd target` — point a
+- **Targeted search (capability B, D27) built**: `endophynd target` — point a
   query (genome/marker/rDNA) at run accessions, a BioProject, or local FASTAs;
   reference inversion (D05) streams each target through the query; outputs a
   reverse-lookup table + the matching unitigs/reads. Package: `endophynd/target/`.
@@ -39,8 +39,9 @@ original Phase 1/3 discovery **SRA** path in `rule retrieve_and_bait`.
   TEF1a 483bp) assemble fine — confirming Logan works, rDNA is the exception.
 - **Seed file cleaned (D19a)**: 15 mRNA contaminant sequences removed; 99 → 84 seeds.
 - **Open next tasks**: (1) live-test `endophynd target --source sra` (fasterq-dump
-  --stdout) on ERR15383529; (2) add discovery `source=sra` to `rule
-  retrieve_and_bait` (see `docs/session_handoff.md`).
+  --stdout) on ERR15383529; (2) close the GBI 5 *Alternaria*-negatives "any fungi?"
+  question (D28). Discovery `source=sra` in `retrieve_and_bait` already landed via
+  parallel work (D21/D24/D25).
 
 ## Key files
 - `endophynd_development_plan.md` — full design and roadmap
