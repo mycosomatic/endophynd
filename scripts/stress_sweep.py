@@ -23,11 +23,26 @@ def _cls(qid: str) -> str:
     return qid.split("_", 1)[0]
 
 
+def low_complexity(seq: str, k: int = 3, thresh: float = 0.5) -> bool:
+    """True if a sequence is low-complexity (simple repeat / homopolymer / micro-
+    satellite). Measured as distinct k-mer fraction: real genomic sequence saturates
+    near 1.0; a repeat tract has very few distinct k-mers. This is what leaks at short
+    lengths (the leak is repeats, not homology), so dropping these unmasks the floor."""
+    seq = seq.upper()
+    if len(seq) < 6:
+        return True
+    kmers = {seq[i:i + k] for i in range(len(seq) - k + 1)}
+    denom = min(len(seq) - k + 1, 4 ** k)
+    return (len(kmers) / denom) < thresh
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sam-dir", required=True)
     ap.add_argument("--ref", required=True)
     ap.add_argument("--out")
+    ap.add_argument("--mask-lowcomplexity", action="store_true",
+                    help="drop hits whose matched sequence is low-complexity (repeat masking)")
     a = ap.parse_args()
 
     lens = read_fasta_lengths(a.ref)
@@ -36,6 +51,11 @@ def main() -> None:
     for sam in glob.glob(f"{a.sam_dir}/*.sam"):
         with open(sam) as f:
             hits += parse_minimap2_sam(f, qs, min_identity=0.0, min_aln_len=1, min_query_cov=0.0)
+
+    if a.mask_lowcomplexity:
+        before = len(hits)
+        hits = [h for h in hits if not (h.matched_seq and low_complexity(h.matched_seq))]
+        print(f"# low-complexity masking: dropped {before - len(hits)} of {before} hits\n")
 
     raw = sorted({_cls(k) for k in lens})
     order = ["ALT", "NMOR", "NSAC", "NBOL", "NPSI", "SHUF"]

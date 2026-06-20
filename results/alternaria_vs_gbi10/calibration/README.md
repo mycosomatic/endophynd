@@ -92,21 +92,31 @@ Read-off:
 
 - **Pure chance never leaks.** `SHUF` = 0 in *every* cell, down to ≥50 bp and ≥80%
   identity. Random sequence does not align at these thresholds at any length.
-- **It breaks at ~50 bp** — the distant nulls explode (Psilocybe 1510, Boletus 433).
-  These are short simple-repeat / low-complexity tracts shared by *all* genomes; even
-  ≥99% identity can't rescue 50 bp (those repeats are ≥99% identical everywhere).
+- **It breaks at ~50 bp — and the cause is conserved rRNA, not repeats.** The distant
+  nulls explode (Psilocybe 1510, Boletus 433), but inspecting the sequences shows they
+  are **conserved rDNA** (5.8S/18S/28S motifs), and **67% of the sub-100 bp leak hits
+  cluster on a single Psilocybe contig across a ~14 kb span — the rDNA tandem array.**
+  rRNA blocks are ≥95% identical across *all* fungi, so over a short window even a
+  distant fungus matches a plant's fungal reads; the blocks just aren't long enough to
+  sustain ≥95% past ~100–125 bp. (A low-complexity / DUST filter does **not** remove
+  this — these are real, diverse sequence, not simple repeats; verified, it dropped
+  only 49/7634 hits and barely moved the leak.)
 - **It's clean again by ~100–125 bp**: at ≥95%/≥100 bp the distant-fungus floor is
   1–2; at **≥125 bp it is exactly 0** — while recovering **~25× more signal** than the
   ultra-conservative ≥200 bp (3,432 vs 140).
 - `NSAC` (yeast) persists to ≥200 bp, tracking like signal, not noise — reconfirming
   it is real yeast, not a false floor.
 
-**Conclusions.** The leak is **length-driven low-complexity/repeat cross-talk, not
-chance or homology.** Safe operating envelope: **≥95% identity, ≥100–125 bp** (floor
-≤2 / 0); the break is at **~50–75 bp**. The shipped ≥200 bp is very conservative —
-there is real headroom. **Next upgrade:** because the leak is repeats, masking
-low-complexity / simple-repeat regions (DUST on the query, or dropping repeat-class
-hits) should push the usable floor well below 100 bp without admitting noise.
+**Conclusions.** The short-length leak is **conserved-rRNA homology** (rDNA), not
+chance (SHUF=0 everywhere) and not low-complexity repeats. Safe operating envelope:
+**≥95% identity, ≥100–125 bp** (floor ≤2 / 0); the break is at **~50–75 bp**. The
+shipped ≥200 bp is very conservative — there is real headroom, and **the ≥125 bp floor
+already excludes the rDNA leak with no masking needed.** Pushing *below* ~100 bp would
+require masking the rDNA / conserved-multicopy regions of the query (e.g. barrnap, or
+masking regions matching `resources/rdna_ref.fa`) — more involved, and only marginal
+sensitivity gain, so not pursued. A generic low-complexity filter
+(`stress_sweep.py --mask-lowcomplexity`) is retained as a cheap guard against
+simple-repeat artifacts with *other* queries, but it is not the fix for this leak.
 (3-dataset probe with `-s 50`; numbers are not directly comparable to the ≥200 bp
 calibration run, which used the default `asm20` floor — the *frontier shape* is the point.)
 
