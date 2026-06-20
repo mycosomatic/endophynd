@@ -3,3 +3,4 @@
 # Anchored (leading slash) so hits/per_plant/ is NOT matched.
 /per_plant/
 /refs/
+/calibration/stress/
