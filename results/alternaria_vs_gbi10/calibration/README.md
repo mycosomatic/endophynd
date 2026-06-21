@@ -120,6 +120,32 @@ simple-repeat artifacts with *other* queries, but it is not the fix for this lea
 (3-dataset probe with `-s 50`; numbers are not directly comparable to the ≥200 bp
 calibration run, which used the default `asm20` floor — the *frontier shape* is the point.)
 
+## Operational two-tier reporting + QC sampling (`scripts/tiered_report.py`)
+
+Runs now report two length tiers from ONE alignment (`scan_one_plant.sh` aligns with
+`-s 50` so sub-200 bp alignments are emitted; override with `MM2_S=`):
+
+- **≥200 bp — high-confidence** (calibrated FP floor 0)
+- **≥125 bp — sensitive** (FP floor 0, ~25–28× more signal; the rDNA leak is already
+  excluded by 125 bp)
+
+`tiered_report.py` emits per-dataset hit counts at each tier plus the false-positive
+floor from the **valid** nulls (the macrofungi + shuffle; `NSAC`/yeast is excluded —
+it's a plausible real presence, D29). On the 3 stress datasets:
+
+| dataset | hits≥200 | hits≥125 | floor≥200 | floor≥125 |
+|---|---|---|---|---|
+| Silene | 120 | 3357 | 0 | 0 |
+| Streptanthus | 0 | 1 | 0 | 0 |
+| Carpenteria | 20 | 74 | 0 | 0 |
+
+Targeted mode is self-classifying (a hit already matched the query), so hits are NOT
+classified against an external database per-hit — sidestepping the "no portable DB"
+problem. Instead a **seeded random subset** is reverse-classified for QC. A 40-hit
+sample (seed 42) of the ≥125 bp tier: **39/39 classified hits are fungal, 38/39
+Alternaria** (the *alternata* complex), 0 plant/bacterial, 1 unclassified — confirming
+the sensitive tier. Outputs in `stress_tiered/`.
+
 ## Files
 - `fpr_sweep.tsv` — hits per class across an identity × length grid at the ≥200 bp floor (the FP curve).
 - `operating_point.tsv` — per-dataset hits per class at ≥95% / ≥200 bp.

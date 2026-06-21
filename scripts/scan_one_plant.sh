@@ -22,7 +22,11 @@ if [ ! -f "$PP/$RUN.done" ]; then
   P1="$TMPD/mm.fifo"; P2="$TMPD/sm.fifo"
   mkfifo "$P1" "$P2"
   # pipefail inside the subshell so a minimap2 failure (not just samtools) is caught.
-  ( set -o pipefail; minimap2 -ax asm20 -t 4 --secondary=no "$REF" "$P1" 2>"$PP/$RUN.mm2.err" \
+  # -s lowers minimap2's min reported alignment score so sub-200bp alignments are
+  # emitted (asm20 alone floors at ~200bp). This lets ONE alignment serve multiple
+  # length tiers (e.g. >=200 high-confidence + >=125 sensitive) at analysis time.
+  # Override with MM2_S= (higher = fewer short alignments).
+  ( set -o pipefail; minimap2 -ax asm20 -s "${MM2_S:-50}" -t 4 --secondary=no "$REF" "$P1" 2>"$PP/$RUN.mm2.err" \
       | samtools view -F 4 - > "$SAM" ) & MM=$!
   ( sourmash sketch dna -p k=31,scaled=1000 "$P2" -o "$SIG" --name "$RUN" 2>"$PP/$RUN.sm.err" ) & SM=$!
   aws s3 cp "s3://logan-pub/u/$RUN/$RUN.unitigs.fa.zst" - --no-sign-request 2>"$PP/$RUN.aws.err" \
