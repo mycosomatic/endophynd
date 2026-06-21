@@ -351,3 +351,57 @@ Tell Claude Code:
 > is `ERR15383529` (42× Alternaria alternata WGS PE151, already in samplesheet).
 > The conda env already has `sra-tools>=3.0`. See the implementation plan in
 > `docs/session_handoff.md` under 'What to build next'."
+
+---
+
+## Session 2026-06-19/20: Targeted search built, applied, reframed, and calibrated (D27–D29)
+
+Built **capability B** end to end and applied it once, with a full honesty/rigor pass.
+
+**Landed (commits on branch `claude/targeted-search-gbi-scan`, PR #4):**
+- `endophynd target` engine (`endophynd/target/`): reference inversion (D05); minimap2
+  for genome/marker queries, blastn for rDNA; targets = run accessions / BioProject
+  (ENA-expanded) / local FASTA; outputs a reverse-lookup table + matching sequences.
+- First application (D28): 10 GBI plant Logan datasets × an *Alternaria* genome →
+  DNA matching the query in **5/10** (Silene/Carpenteria/Ceanothus/Dudleya/Carex).
+  **Reframed honestly**: the tool reports "which datasets contain this DNA / which
+  fungal DNA is in the reads," NOT residency (endophyte/surface/lab/index-hop
+  unexcluded). `results/alternaria_vs_gbi10/REPORT.md`.
+- Multi-agent review → fixes: corrected the fabricated ERR15383529 identity (D19→D22),
+  code-correctness fixes, provenance, +21 tests (83 total), regenerated SUMMARY.
+- Calibration (D29): biologically-absent genome nulls (*Morchella/Boletus/Psilocybe*,
+  + *S. cerevisiae* which proved to be **real yeast**, not a valid null) + a seeded
+  query shuffle → **false-positive floor = 0 at ≥95%/≥125 bp**. Stress sweep: the
+  sub-100 bp leak is **conserved rDNA**, not repeats. Two-tier reporting (≥200
+  high-confidence + ≥125 sensitive) + seeded-subset reverse-classification QC.
+  `results/alternaria_vs_gbi10/calibration/README.md`.
+- Manuscript-ready précis: **`docs/methods_summary.md`**.
+
+**Reusable scripts:** `scripts/{scan_one_plant.sh, confidence_profile.py,
+collect_alt_hits.py, merge_hit_classification.py, fpr_calibration.py, stress_sweep.py,
+shuffle_genome.py, tiered_report.py}`. Calibration null genomes are NCBI-downloadable
+(accessions in `calibration/README.md`); the query genome is unpublished (md5 in
+`provenance.json`).
+
+**Deliberately NOT done** (low value / out of scope): full 10-dataset re-run at the
+new low minimap2 floor; sub-100 bp rDNA masking; index-hopping provenance check.
+
+## How to start the NEXT session — capability A (discovery: "what fungi are in here?")
+
+Goal: given an SRA accession with **ITS amplicon / shotgun reads**, recover the fungal
+ITS and classify it (UNITE) → a per-accession taxa table ("what is in here", blind).
+This is the *discovery* mirror of targeted mode (D02), and the spine the project was
+designed around.
+
+What already exists to build on:
+- The **`source=sra` streaming path** in `rule retrieve_and_bait` (merged parallel
+  work, D21/D24/D25; platform-aware; `fasterq-dump --stdout` → bbduk bait).
+- ITS primer seeds: `resources/its_primers.fa`; rDNA reference: `resources/rdna_ref.fa`;
+  locus assignment: `scripts/assign_locus_blast.py` (D17).
+- The Snakefile discovery DAG: triage → retrieve_and_bait → annotate_and_gate →
+  (dereplicate) → classify → feature table. Classify is still a stub — wiring UNITE
+  via q2-feature-classifier (or kraken2/vsearch for short reads) is the open piece.
+- D24 two-path design: ITS via SRA raw reads; protein-coding via Logan unitigs.
+
+First concrete step: pick an SRA accession with fungal ITS reads, run the discovery
+path to the gated ITS sequences, then wire classification against UNITE.
