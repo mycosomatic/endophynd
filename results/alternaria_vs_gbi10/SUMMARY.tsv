@@ -1,0 +1,11 @@
+run	species	family	total_hits	nuclear_alternaria_hits	mito_rRNA_crossmatch_hits	median_our_genome_identity	call
+SRR30183952	Silene_verecunda	Caryophyllaceae	106	84	22	0.9922	query-DNA present (source undetermined)
+SRR30183458	Streptanthus_glandulosus	Brassicaceae	0	0	0	NA	no query match
+SRR35806671	Carpenteria_californica	Hydrangeaceae	17	17	0	1.0000	query-DNA present (source undetermined)
+SRR35807865	Dudleya_viscida	Crassulaceae	5	5	0	0.9952	query-DNA present (source undetermined)
+SRR35806735	Iris_munzii	Iridaceae_monocot	0	0	0	NA	no query match
+SRR35806654	Carex_obispoensis	Cyperaceae_monocot	2	2	0	0.9877	query-DNA present (source undetermined)
+SRR35806652	Berberis_harrisoniana	Berberidaceae	0	0	0	NA	no query match
+SRR35807883	Rosa_pinetorum	Rosaceae	0	0	0	NA	no query match
+SRR35806807	Ceanothus_ophiochilus	Rhamnaceae	7	6	1	0.9954	query-DNA present (source undetermined)
+SRR35806662	Calochortus_raichei	Liliaceae_monocot	0	0	0	NA	no query match

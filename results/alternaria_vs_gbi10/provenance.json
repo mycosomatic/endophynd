@@ -1,0 +1,43 @@
+{
+  "analysis": "alternaria_vs_gbi10 \u2014 targeted reverse-inversion scan (capability B, D05/D27/D28)",
+  "git_commit": "db640e4b862303dcddf795ee90aa76d03f3a00e1",
+  "analysis_date": "2026-06-20",
+  "nt_blast": "remote NCBI nt, queried 2026-06-20 (non-deterministic \u2014 DB is versioned upstream; -max_target_seqs 1 used, see caveat)",
+  "nt_blast_caveat": "-remote nt with -max_target_seqs 1 is non-deterministic and does not guarantee the single best hit (known BLAST pitfall); it establishes fungal/phylum membership, not species or residency. Species-level calls can drift run-to-run.",
+  "tool_versions": {
+    "minimap2": "2.17-r941",
+    "blastn": "2.16.0+",
+    "sourmash": "4.9.4",
+    "samtools": "1.14",
+    "aws-cli": "1.22.34",
+    "zstd": "1.5.7",
+    "captured": "live via `<tool> --version`, 2026-06-20"
+  },
+  "query_genome": {
+    "path": "/home/harte/Desktop/Ian/CoSp_Test5/Alternaria_sp_A2/NS26-3-C2/NS26-3-C2_final_EGAP_assembly.fasta",
+    "md5": "c7c26e1b3d98f5c4de1b6fdd7f426c59",
+    "n_contigs": 83,
+    "total_bp": 33349952,
+    "note": "unpublished isolate; EGAP assembly. Alternaria sp. NS26-3-C2 (Harte's cultured isolate). n_contigs and total_bp cross-checked against REPORT.md \u00a72 and the ALT_-prefixed records in refs/combined_ref.fa and per_plant/*.profile.json (ALT class_bp = 33349952)."
+  },
+  "control": "S. cerevisiae R64 GCF_000146045.2",
+  "params": {
+    "min_identity": 0.95,
+    "min_aln_len": 200,
+    "minimap2_preset": "asm20",
+    "sourmash": "k=31,scaled=1000"
+  },
+  "params_note": "minimap2 run as `-ax asm20 -t 4 --secondary=no` (verified in per_plant/*.mm2.err). The corrected result (REPORT \u00a74/\u00a75, D28) gates at >=95% identity over >=200 bp; the original pre-correction gate (>=500 bp + blind FUNGAL marker panel) is preserved in SUMMARY.precorrection.tsv. Sourmash containment produced no usable output in this run and contributed zero evidence.",
+  "plant_accessions": [
+    "SRR30183952",
+    "SRR30183458",
+    "SRR35806671",
+    "SRR35807865",
+    "SRR35806735",
+    "SRR35806654",
+    "SRR35806652",
+    "SRR35807883",
+    "SRR35806807",
+    "SRR35806662"
+  ]
+}

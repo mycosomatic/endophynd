@@ -1,0 +1,138 @@
+hit_id	species	unitig_len	our_genome_contig	our_genome_identity	our_genome_aln_len	nt_identity	nt_aln_len	nt_organism	call	nt_title
+Carex_obispoensis__SRR35806654_16085302	Carex_obispoensis	214	NODE_14	1.0000	214	100.000	214	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Carex_obispoensis__SRR35806654_18372785	Carex_obispoensis	244	NODE_7	0.9754	244	97.541	244	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 4, complete sequence
+Carpenteria_californica__SRR35806671_747785	Carpenteria_californica	252	NODE_14	1.0000	252	100.000	252	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 3, complete sequence
+Carpenteria_californica__SRR35806671_825671	Carpenteria_californica	249	NODE_2	1.0000	249	100.000	249	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Carpenteria_californica__SRR35806671_4284393	Carpenteria_californica	201	NODE_6	1.0000	201	99.502	201	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Carpenteria_californica__SRR35806671_7273913	Carpenteria_californica	238	NODE_9	1.0000	238	100.000	238	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 10
+Carpenteria_californica__SRR35806671_13724042	Carpenteria_californica	235	NODE_21	1.0000	235	100.000	235	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Carpenteria_californica__SRR35806671_15597874	Carpenteria_californica	227	NODE_14	1.0000	227	100.000	227	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Carpenteria_californica__SRR35806671_17154846	Carpenteria_californica	235	NODE_5	1.0000	235	100.000	235	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 9, complete sequence
+Carpenteria_californica__SRR35806671_23629412	Carpenteria_californica	229	NODE_13	1.0000	229	100.000	229	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Carpenteria_californica__SRR35806671_33652062	Carpenteria_californica	227	NODE_13	1.0000	227	100.000	227	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 2
+Carpenteria_californica__SRR35806671_9506957	Carpenteria_californica	262	NODE_6	0.9962	262	99.618	262	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 1, complete sequence
+Carpenteria_californica__SRR35806671_1546877	Carpenteria_californica	246	NODE_5	0.9959	246	99.593	246	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 9, complete sequence
+Carpenteria_californica__SRR35806671_25164799	Carpenteria_californica	208	NODE_3	0.9952	208	100.000	208	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 5
+Carpenteria_californica__SRR35806671_4757661	Carpenteria_californica	239	NODE_3	0.9874	239	99.582	239	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 5
+Carpenteria_californica__SRR35806671_1803926	Carpenteria_californica	257	NODE_5	0.9843	254	99.611	257	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 7
+Carpenteria_californica__SRR35806671_10164710	Carpenteria_californica	240	NODE_20	0.9833	239	100.000	240	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 10, complete sequence
+Carpenteria_californica__SRR35806671_11787283	Carpenteria_californica	241	NODE_8	0.9751	241	98.340	241	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Carpenteria_californica__SRR35806671_1324235	Carpenteria_californica	252	NODE_3	0.9683	252	100.000	252	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 5
+Ceanothus_ophiochilus__SRR35806807_5541270	Ceanothus_ophiochilus	269	NODE_17	1.0000	269	96.654	269	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Ceanothus_ophiochilus__SRR35806807_17189695	Ceanothus_ophiochilus	261	NODE_11	1.0000	261	100.000	261	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Ceanothus_ophiochilus__SRR35806807_17857594	Ceanothus_ophiochilus	210	NODE_8	1.0000	210	100.000	210	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Ceanothus_ophiochilus__SRR35806807_8289754	Ceanothus_ophiochilus	217	NODE_2	0.9954	217	99.539	217	Alternaria brassicae	Alternaria	Alternaria brassicae strain BTP chromosome 1
+Ceanothus_ophiochilus__SRR35806807_6191440	Ceanothus_ophiochilus	237	NODE_13	0.9828	233	97.890	237	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Ceanothus_ophiochilus__SRR35806807_29232853	Ceanothus_ophiochilus	249	NODE_7	0.9779	226	95.885	243	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 2
+Ceanothus_ophiochilus__SRR35806807_922139	Ceanothus_ophiochilus	261	NODE_26	0.9732	261	99.617	261	Sclerophomella aquilegiicola	other_fungus	TPA_asm: Sclerophomella aquilegiicola mitochondrion, complete sequence
+Dudleya_viscida__SRR35807865_4182714	Dudleya_viscida	219	NODE_7	1.0000	219	100.000	219	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 2
+Dudleya_viscida__SRR35807865_32111706	Dudleya_viscida	211	NODE_5	1.0000	211	100.000	211	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 7
+Dudleya_viscida__SRR35807865_811735	Dudleya_viscida	209	NODE_3	0.9952	209	99.043	209	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 5
+Dudleya_viscida__SRR35807865_14625197	Dudleya_viscida	214	NODE_7	0.9907	214	99.065	214	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 2
+Dudleya_viscida__SRR35807865_1432650	Dudleya_viscida	258	NODE_2	0.9767	258	97.674	258	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_569870	Silene_verecunda	230	NODE_1	1.0000	230	100.000	230	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_1297007	Silene_verecunda	329	NODE_26	1.0000	329	100.000	329	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_1668703	Silene_verecunda	205	NODE_26	1.0000	205	100.000	205	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_1855300	Silene_verecunda	466	NODE_26	1.0000	466	100.000	466	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_1927300	Silene_verecunda	225	NODE_14	1.0000	225	100.000	225	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Silene_verecunda__SRR30183952_2124236	Silene_verecunda	237	NODE_26	1.0000	237	100.000	237	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_3661532	Silene_verecunda	422	NODE_26	1.0000	422	100.000	422	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_4247097	Silene_verecunda	250	NODE_26	1.0000	250	100.000	250	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_4782258	Silene_verecunda	211	NODE_32	1.0000	211	100.000	211	Alternaria sp.	Alternaria	Alternaria sp. isolate CP-AK1 small subunit ribosomal RNA gene, partial sequence; internal transcribed spacer 1, 5.8S ribosomal RNA gene, and internal transcribed spacer 2, complete sequence; and large subunit ribosomal RNA gene, partial sequence
+Silene_verecunda__SRR30183952_5589675	Silene_verecunda	262	NODE_1	1.0000	262	100.000	262	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_6789048	Silene_verecunda	210	NODE_26	1.0000	210	100.000	210	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_7500157	Silene_verecunda	355	NODE_26	1.0000	355	100.000	355	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_9587365	Silene_verecunda	255	NODE_26	1.0000	255	100.000	255	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_10858331	Silene_verecunda	352	NODE_18	1.0000	352	100.000	352	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 8
+Silene_verecunda__SRR30183952_11433574	Silene_verecunda	298	NODE_26	1.0000	298	100.000	298	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_12583876	Silene_verecunda	246	NODE_7	1.0000	246	100.000	246	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 2
+Silene_verecunda__SRR30183952_13909861	Silene_verecunda	223	NODE_26	1.0000	223	100.000	223	Alternaria tenuissima	Alternaria	Alternaria tenuissima isolate AT-1224 mitochondrion, complete genome
+Silene_verecunda__SRR30183952_16990622	Silene_verecunda	234	NODE_26	1.0000	234	100.000	234	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_18659829	Silene_verecunda	279	NODE_26	1.0000	279	100.000	279	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_19222465	Silene_verecunda	227	NODE_1	1.0000	227	100.000	227	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_20078887	Silene_verecunda	236	NODE_26	1.0000	236	100.000	236	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_21971846	Silene_verecunda	258	NODE_10	1.0000	258	100.000	258	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_23439467	Silene_verecunda	248	NODE_26	1.0000	248	100.000	248	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_25300450	Silene_verecunda	234	NODE_2	1.0000	234	100.000	234	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_27410113	Silene_verecunda	246	NODE_32	1.0000	246	100.000	246	Alternaria brassicae	Alternaria	Alternaria brassicae strain BTP chromosome 3
+Silene_verecunda__SRR30183952_31344903	Silene_verecunda	210	NODE_2	1.0000	210	99.524	210	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 1
+Silene_verecunda__SRR30183952_39757947	Silene_verecunda	225	NODE_26	1.0000	225	100.000	225	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_50412591	Silene_verecunda	231	NODE_11	1.0000	231	100.000	231	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_55810835	Silene_verecunda	231	NODE_7	1.0000	223	99.567	231	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 5
+Silene_verecunda__SRR30183952_72288106	Silene_verecunda	244	NODE_1	1.0000	244	100.000	244	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_14952800	Silene_verecunda	265	NODE_2	0.9962	265	99.623	265	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_24187692	Silene_verecunda	262	NODE_3	0.9962	262	99.618	262	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 5
+Silene_verecunda__SRR30183952_34719167	Silene_verecunda	263	NODE_6	0.9962	263	100.000	263	Alternaria brassicae	Alternaria	Alternaria brassicae strain BTP chromosome 1
+Silene_verecunda__SRR30183952_39466876	Silene_verecunda	265	NODE_10	0.9962	265	99.623	265	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_367171	Silene_verecunda	252	NODE_1	0.9960	252	100.000	252	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_7402843	Silene_verecunda	253	NODE_3	0.9960	253	100.000	253	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 4
+Silene_verecunda__SRR30183952_10717917	Silene_verecunda	247	NODE_14	0.9960	247	99.595	247	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 8
+Silene_verecunda__SRR30183952_22064169	Silene_verecunda	253	NODE_2	0.9960	253	99.605	253	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_4892088	Silene_verecunda	242	NODE_19	0.9959	242	99.587	242	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 8
+Silene_verecunda__SRR30183952_6093470	Silene_verecunda	245	NODE_7	0.9959	245	99.592	245	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 2
+Silene_verecunda__SRR30183952_1806141	Silene_verecunda	236	NODE_2	0.9958	236	100.000	236	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 1, complete sequence
+Silene_verecunda__SRR30183952_11305686	Silene_verecunda	238	NODE_14	0.9958	236	99.576	236	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Silene_verecunda__SRR30183952_16388360	Silene_verecunda	238	NODE_15	0.9958	238	100.000	238	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_10220251	Silene_verecunda	229	NODE_1	0.9956	229	100.000	229	Alternaria brassicae	Alternaria	Alternaria brassicae strain BTP chromosome 2
+Silene_verecunda__SRR30183952_11146163	Silene_verecunda	227	NODE_2	0.9956	227	100.000	227	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g2048), partial mRNA
+Silene_verecunda__SRR30183952_1172813	Silene_verecunda	221	NODE_26	0.9955	221	99.548	221	Fungal sp.	other_fungus	TPA_asm: Fungal sp. Pr10 mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_23999645	Silene_verecunda	223	NODE_3	0.9955	223	100.000	223	Alternaria arborescens	Alternaria	Alternaria arborescens Histidine protein kinase (AA0111_g4036), partial mRNA
+Silene_verecunda__SRR30183952_1073474	Silene_verecunda	213	NODE_1	0.9953	213	97.170	212	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 2, complete sequence
+Silene_verecunda__SRR30183952_2620243	Silene_verecunda	215	NODE_26	0.9953	215	100.000	215	Alternaria viburni	Alternaria	TPA_asm: Alternaria viburni mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_18151588	Silene_verecunda	209	NODE_10	0.9952	209	99.522	209	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_30292807	Silene_verecunda	263	NODE_2	0.9924	263	98.859	263	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_7794888	Silene_verecunda	257	NODE_15	0.9922	257	99.611	257	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_39356969	Silene_verecunda	255	NODE_9	0.9922	255	98.438	256	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 9
+Silene_verecunda__SRR30183952_47277277	Silene_verecunda	258	NODE_3	0.9922	258	99.225	258	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 5, complete sequence
+Silene_verecunda__SRR30183952_4581422	Silene_verecunda	254	NODE_5	0.9921	254	99.213	254	Alternaria arborescens	Alternaria	Alternaria arborescens strain DET2035 chromosome 8
+Silene_verecunda__SRR30183952_45524128	Silene_verecunda	377	NODE_10	0.9920	377	99.735	377	Alternaria arborescens	Alternaria	Alternaria arborescens Brefeldin A resistance protein (AA0111_g9345), partial mRNA
+Silene_verecunda__SRR30183952_24970665	Silene_verecunda	238	NODE_12	0.9916	238	100.000	238	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g3271), partial mRNA
+Silene_verecunda__SRR30183952_2298839	Silene_verecunda	233	NODE_14	0.9914	233	100.000	233	Alternaria arborescens	Alternaria	Alternaria arborescens putative secreted protein (AA0111_g4293), partial mRNA
+Silene_verecunda__SRR30183952_227963	Silene_verecunda	227	NODE_7	0.9912	227	99.559	227	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 2
+Silene_verecunda__SRR30183952_1073442	Silene_verecunda	228	NODE_2	0.9912	228	99.123	228	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_33214553	Silene_verecunda	224	NODE_5	0.9911	224	100.000	224	Alternaria arborescens	Alternaria	Alternaria arborescens strain DET2035 chromosome 8
+Silene_verecunda__SRR30183952_52889257	Silene_verecunda	225	NODE_2	0.9910	222	100.000	225	Alternaria arborescens	Alternaria	Alternaria arborescens ATP-dependent 6-phosphofructokinase (AA0111_g7625), partial mRNA
+Silene_verecunda__SRR30183952_3288623	Silene_verecunda	220	NODE_8	0.9909	220	100.000	220	Alternaria arborescens	Alternaria	Alternaria arborescens ATP-dependent DNA helicase II subunit 2 (AA0111_g3173), partial mRNA
+Silene_verecunda__SRR30183952_22028180	Silene_verecunda	264	NODE_8	0.9884	259	98.485	264	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Silene_verecunda__SRR30183952_69160374	Silene_verecunda	256	NODE_10	0.9883	256	100.000	255	Alternaria brassicae	Alternaria	Alternaria brassicae strain BTP chromosome 3
+Silene_verecunda__SRR30183952_41524976	Silene_verecunda	254	NODE_9	0.9882	254	100.000	254	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 10
+Silene_verecunda__SRR30183952_45296849	Silene_verecunda	246	NODE_3	0.9876	241	97.561	246	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g3795), partial mRNA
+Silene_verecunda__SRR30183952_18936878	Silene_verecunda	232	NODE_8	0.9871	232	98.707	232	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Silene_verecunda__SRR30183952_520560	Silene_verecunda	222	NODE_20	0.9865	222	98.649	222	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 9
+Silene_verecunda__SRR30183952_67484830	Silene_verecunda	275	NODE_1	0.9855	275	98.545	275	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_705573	Silene_verecunda	264	NODE_6	0.9848	264	100.000	264	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g1099), partial mRNA
+Silene_verecunda__SRR30183952_53150602	Silene_verecunda	256	NODE_3	0.9844	256	99.609	256	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g3934), partial mRNA
+Silene_verecunda__SRR30183952_5330352	Silene_verecunda	255	NODE_4	0.9843	255	98.431	255	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 6
+Silene_verecunda__SRR30183952_43409475	Silene_verecunda	241	NODE_26	0.9832	238	98.340	241	Alternaria burnsii	Alternaria	Alternaria burnsii n-acetyl-transferase (GT037_011311), partial mRNA
+Silene_verecunda__SRR30183952_250926	Silene_verecunda	236	NODE_2	0.9831	236	98.729	236	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g2056), partial mRNA
+Silene_verecunda__SRR30183952_28386947	Silene_verecunda	233	NODE_2	0.9828	233	99.571	233	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_6463716	Silene_verecunda	434	NODE_26	0.9827	231	96.092	435	Stemphylium beticola	other_fungus	Stemphylium beticola isolate St0618 cytochrome b (cytb) gene, partial cds; mitochondrial
+Silene_verecunda__SRR30183952_7701053	Silene_verecunda	227	NODE_4	0.9824	227	98.238	227	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 6
+Silene_verecunda__SRR30183952_85057	Silene_verecunda	222	NODE_12	0.9820	222	98.649	222	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 3
+Silene_verecunda__SRR30183952_23027	Silene_verecunda	268	NODE_1	0.9813	268	99.254	268	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 2
+Silene_verecunda__SRR30183952_1292447	Silene_verecunda	266	NODE_9	0.9812	266	98.120	266	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 9
+Silene_verecunda__SRR30183952_26584021	Silene_verecunda	266	NODE_3	0.9812	266	98.120	266	Alternaria alternata	Alternaria	Alternaria alternata strain DZ chromosome 4
+Silene_verecunda__SRR30183952_25233740	Silene_verecunda	264	NODE_2	0.9811	264	99.621	264	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_5373985	Silene_verecunda	263	NODE_1	0.9810	263	100.000	263	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g5875), partial mRNA
+Silene_verecunda__SRR30183952_38608250	Silene_verecunda	251	NODE_7	0.9801	251	100.000	251	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g7314), partial mRNA
+Silene_verecunda__SRR30183952_29162379	Silene_verecunda	246	NODE_2	0.9797	246	99.593	246	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_3111304	Silene_verecunda	320	NODE_26	0.9796	245	95.925	319	Bipolaris bicolor	other_fungus	TPA_asm: Bipolaris bicolor mitochondrion, complete sequence
+Silene_verecunda__SRR30183952_4694915	Silene_verecunda	243	NODE_15	0.9794	243	98.765	243	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_22606665	Silene_verecunda	235	NODE_3	0.9787	235	97.872	235	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 5
+Silene_verecunda__SRR30183952_5334453	Silene_verecunda	227	NODE_11	0.9780	227	100.000	227	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g11818), partial mRNA
+Silene_verecunda__SRR30183952_36474802	Silene_verecunda	267	NODE_1	0.9775	267	98.127	267	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_33156356	Silene_verecunda	264	NODE_7	0.9773	264	98.106	264	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 2
+Silene_verecunda__SRR30183952_19355502	Silene_verecunda	260	NODE_12	0.9769	260	97.692	260	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 8
+Silene_verecunda__SRR30183952_35375208	Silene_verecunda	262	NODE_13	0.9769	260	100.000	262	Alternaria conjuncta	Alternaria	Alternaria conjuncta uncharacterized protein (J4E85_007958), partial mRNA
+Silene_verecunda__SRR30183952_20623099	Silene_verecunda	247	NODE_13	0.9757	247	97.976	247	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_30173955	Silene_verecunda	250	NODE_4	0.9755	245	100.000	250	Alternaria arborescens	Alternaria	Alternaria arborescens Lymphoid-specific helicase (AA0111_g8437), partial mRNA
+Silene_verecunda__SRR30183952_11480029	Silene_verecunda	240	NODE_4	0.9750	240	97.500	240	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 6
+Silene_verecunda__SRR30183952_24480819	Silene_verecunda	334	NODE_32	0.9732	261	97.923	337	Alternaria tenuissima	Alternaria	Alternaria tenuissima isolate CH1 28S ribosomal RNA gene, partial sequence; 28S-18S ribosomal RNA intergenic spacer, complete sequence; and 18S ribosomal RNA gene, partial sequence
+Silene_verecunda__SRR30183952_30535374	Silene_verecunda	260	NODE_11	0.9731	260	100.000	260	Alternaria arborescens	Alternaria	Alternaria arborescens Vacuolar protein sorting-associated protein 18 (AA0111_g7803), partial mRNA
+Silene_verecunda__SRR30183952_10704514	Silene_verecunda	237	NODE_4	0.9705	237	99.156	237	Alternaria arborescens	Alternaria	Alternaria arborescens hypothetical protein (AA0111_g12793), partial mRNA
+Silene_verecunda__SRR30183952_1436059	Silene_verecunda	262	NODE_15	0.9695	262	96.947	262	Alternaria alternata	Alternaria	Alternaria alternata strain Z7 chromosome 1, complete sequence
+Silene_verecunda__SRR30183952_32363060	Silene_verecunda	253	NODE_1	0.9684	253	96.838	253	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 1
+Silene_verecunda__SRR30183952_24307302	Silene_verecunda	268	NODE_14	0.9664	268	97.015	268	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 3
+Silene_verecunda__SRR30183952_12304276	Silene_verecunda	258	NODE_4	0.9569	255	96.124	258	Alternaria brassicae	Alternaria	Alternaria brassicae strain BTP chromosome 6
+Silene_verecunda__SRR30183952_6251490	Silene_verecunda	269	NODE_6	0.9557	271	98.513	269	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4
+Silene_verecunda__SRR30183952_81275304	Silene_verecunda	265	NODE_15	0.9547	265	95.472	265	Alternaria brassicae	Alternaria	Alternaria brassicae strain PNT chromosome 4

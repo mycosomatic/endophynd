@@ -12,9 +12,21 @@ bait:
   seed_ref: "resources/rrna_seeds.fa"   # conserved rDNA k-mer seed set
   k: 31
   hdist: 1
-  minlength: 50                          # discard reads shorter than this after baiting
+  minlength: 100                         # discard reads shorter than this after baiting (100 suits PE151 SRA reads)
 
 bait_threads: 4                          # threads for bbduk; raise on multi-core machines
+
+# Per-platform bait overrides applied at runtime in retrieve_and_bait.
+# minlength and minavgquality are set in the Snakefile shell block; these
+# are documentation of the defaults — edit the Snakefile to change them.
+#
+# platform       minlength  minavgquality  paired   classification ceiling
+# ---------------------------------------------------------------------------
+# illumina         100          —           yes      species (UNITE/SILVA)
+# pacbio-hifi      500         Q30          no       species (Q30-40 CCS)
+# pacbio-clr       500         Q15          no       genus only (Q10-15)
+# ont              500         Q15          no       genus-species (Q10-30, variable)
+#                                                    flag species calls if median Q<20
 
 # --- Locus annotation (ITSx) ---
 itsx:
@@ -74,3 +86,19 @@ output:
 # --- Workflow behavior ---
 max_parallel_accessions: 4
 delete_transient_after_classify: true   # process-then-delete; set false only for debugging
+
+# --- Targeted search (capability B: `endophynd target`) ---
+# Reference inversion (D05): the query is the reference; each target streams
+# through it. These are CLI defaults; every key is overridable on the command line.
+target:
+  source: auto             # auto | logan | sra | local (auto: Logan if present, else SRA)
+  query_type: auto         # auto | genome | rdna  (rdna → blastn; genome → minimap2)
+  aligner: auto            # auto | minimap2 | blastn
+  min_identity: 0.80       # keep hits at >= this identity (0-1)
+  min_aln_len: 50          # keep hits at >= this alignment length (bp)
+  min_query_cov: 0.0       # keep hits covering >= this fraction of the query record
+  minimap2_preset: asm20   # -x preset; provisional pending mock-community calibration (§12)
+  max_target_seqs: 5       # blastn: max query records reported per dataset read
+  evalue: 1.0e-5           # blastn e-value cutoff
+  jobs: 4                  # parallel targets streamed at once
+  threads: 4               # threads per aligner invocation

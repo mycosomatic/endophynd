@@ -83,7 +83,7 @@ def test_logan_streaming_command_no_intermediate_file():
     assert ".zst " not in cmd.split("|")[0].split("--no-sign-request")[-1]
 
 
-def test_sra_not_yet_implemented():
+def test_sra_streaming_command():
     row = {
         "sample_id": "SRA001",
         "source": "sra",
@@ -92,8 +92,23 @@ def test_sra_not_yet_implemented():
         "input_type": "reads",
     }
     route = route_sample(row)
-    with pytest.raises(NotImplementedError, match="Phase 3"):
-        route.streaming_command("out.fa", "seeds.fa", k=31, hdist=1)
+    cmd = route.streaming_command("out.fa", "seeds.fa", k=31, hdist=1)
+    assert "fasterq-dump" in cmd
+    assert "--skip-technical" in cmd
+    assert "--split-spot" in cmd          # illumina → paired/interleaved
+    assert "int=t" in cmd
+    assert "bbduk.sh" in cmd and "outm=out.fa" in cmd
+
+
+def test_sra_long_read_no_split_spot():
+    row = {
+        "sample_id": "X", "source": "sra", "accession": "SRR1",
+        "platform": "pacbio", "input_type": "reads",
+    }
+    route = route_sample(row)
+    cmd = route.streaming_command("out.fa", "seeds.fa", k=31, hdist=1)
+    assert "--split-spot" not in cmd
+    assert "int=f" in cmd
 
 
 def test_unknown_platform_defaults():
