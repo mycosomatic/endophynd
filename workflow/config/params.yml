@@ -86,3 +86,19 @@ output:
 # --- Workflow behavior ---
 max_parallel_accessions: 4
 delete_transient_after_classify: true   # process-then-delete; set false only for debugging
+
+# --- Targeted search (capability B: `endophynd target`) ---
+# Reference inversion (D05): the query is the reference; each target streams
+# through it. These are CLI defaults; every key is overridable on the command line.
+target:
+  source: auto             # auto | logan | sra | local (auto: Logan if present, else SRA)
+  query_type: auto         # auto | genome | rdna  (rdna → blastn; genome → minimap2)
+  aligner: auto            # auto | minimap2 | blastn
+  min_identity: 0.80       # keep hits at >= this identity (0-1)
+  min_aln_len: 50          # keep hits at >= this alignment length (bp)
+  min_query_cov: 0.0       # keep hits covering >= this fraction of the query record
+  minimap2_preset: asm20   # -x preset; provisional pending mock-community calibration (§12)
+  max_target_seqs: 5       # blastn: max query records reported per dataset read
+  evalue: 1.0e-5           # blastn e-value cutoff
+  jobs: 4                  # parallel targets streamed at once
+  threads: 4               # threads per aligner invocation

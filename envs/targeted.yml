@@ -1,0 +1,12 @@
+name: endophynd-targeted
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - minimap2>=2.24      # fast near-identity aligner (genome/marker queries)
+  - blast>=2.13         # blastn/makeblastdb (rDNA / divergent queries)
+  - samtools>=1.15      # drop unmapped SAM records early in the pipe
+  - awscli>=2.0         # stream Logan unitigs from s3://logan-pub
+  - zstd>=1.5           # zstdcat for Logan .zst unitig files
+  - sra-tools>=3.0      # fasterq-dump --stdout for the SRA-reads path

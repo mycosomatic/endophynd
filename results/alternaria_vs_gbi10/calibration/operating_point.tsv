@@ -1,0 +1,12 @@
+# operating point: identity>=0.95, aln_len>=200
+dataset	ALT	NMOR	NSAC	NBOL	NPSI	SHUF
+Silene_verecunda	106	0	0	0	0	0
+Streptanthus_glandulosus	0	0	0	0	0	0
+Carpenteria_californica	17	0	4	0	0	0
+Dudleya_viscida	5	0	0	0	0	0
+Iris_munzii	0	0	0	0	0	0
+Carex_obispoensis	2	0	0	0	0	0
+Berberis_harrisoniana	0	0	0	0	0	0
+Rosa_pinetorum	0	0	0	0	0	0
+Ceanothus_ophiochilus	7	0	0	0	0	0
+Calochortus_raichei	0	0	0	0	0	0

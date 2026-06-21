@@ -140,6 +140,67 @@ for specific baiting of rDNA; k=31 with hdist=1 (the bbduk default) is appropria
 
 ---
 
+## Session 2026-06-19: Targeted search MVP (capability B, Phase 4) built
+
+Built `endophynd target` — the "point a query at a group of genomes and find the
+Logan unitigs / SRA reads that match" feature (D27).
+
+### What landed
+- New package `endophynd/target/`: `models.py`, `resolve.py`, `query.py`,
+  `align.py`, `aggregate.py`, `run.py`. New CLI subcommand `endophynd target`.
+- **Reference inversion (D05)**: the query is the reference; each target streams
+  through it; no dataset-side DB is built or downloaded.
+- **Targets**: run accessions (SRR/ERR/DRR), a BioProject (PRJNA/PRJEB →
+  expanded via ENA filereport API), local FASTAs, or `@file`. Comma/repeat OK.
+- **Sources**: `logan` (built + validated), `local` (built + validated), `sra`
+  (command built via `fasterq-dump --stdout`, **not yet live-tested**), `auto`.
+- **Aligners**: minimap2 (genome/marker, default) and blastn (rDNA/divergent),
+  auto-selected by query type. blastn uses `qseq` to emit matched sequences.
+- **D20 caveat is in-tool**: an rDNA query auto-detected against `--source logan`
+  prints a warning to switch to SRA (Logan collapses rDNA to ~65 bp).
+- **Outputs** (per `--out`): `targeted_summary.tsv` (reverse-lookup headline),
+  `targeted_hits.tsv`, `presence_matrix.tsv`, `per_target/<acc>.hits.fa`,
+  `provenance.json`.
+- Config: `target:` block in `params.yml`; new env `envs/targeted.yml`.
+- Docs: guides `10_targeted_search.md` and `02_resolving_accessions.md`.
+- Tests: `tests/test_target.py` (23 tests — parsers, aggregation, resolution,
+  end-to-end). Full suite: 61 passed.
+
+### Validation done
+- REAL Logan stream: RPB2 query vs Logan `ERR15383529` unitigs → re-found the
+  3389 bp RPB2 unitig at 100% identity in ~12 s.
+- Offline: both aligners find RPB2 in the protein-coding control fixture.
+- rDNA auto-detection: 852 bp Aspergillus ITS query → typed `rdna`, aligner
+  `blastn`, D20 warning fired.
+- Genome-scale real test: Harte's *Alternaria* isolate NS26-3-C2 (33.3 Mb, 83
+  contigs) → Logan `ERR15383529` unitigs = **22,331 unitig hits, median 99.5 %
+  identity, 31 contigs**, in ~10 s.
+
+### Data-record correction (D22) — surfaced by the genome-scale test
+The genome test above exposed a fabrication: **D19 claimed ERR15383529 was an
+"ITS amplicon of a Collinsia plant" — false.** ENA confirms it is WGS / GENOMIC
+*Alternaria alternata* (isolate CS330, study PRJEB93827). Corrected
+non-destructively: D19 banner + status updated (original text preserved), new
+**D22** records the verified facts, and `samplesheet.csv` note fixed. *Collinsia
+sparsiflora* is the host **flower** Harte isolated fungal endophytes from — not
+this external reference accession. Lesson logged: verify accession identity
+against ENA/NCBI before recording it.
+
+### Immediate next steps for targeted search
+1. **Live-test the SRA path**: `endophynd target -q <ITS.fa> -t ERR15383529
+   --source sra --query-type rdna --aligner blastn -o results/its_sra`. Confirm
+   `fasterq-dump --stdout --split-spot | awk(fq2fa) | blastn` streams cleanly and
+   returns ITS hits. Watch for fasterq-dump stdout reliability (handoff §Option B
+   fallback below applies if it stalls).
+2. Consider a small real BioProject end-to-end (e.g. a handful of runs) to
+   exercise ENA expansion + parallel streaming.
+3. minimap2 preset (`asm20`) and the final single-aligner choice are provisional
+   pending Phase 1.5 mock-community calibration (§12).
+4. Optional: a Snakemake wrapper for resumable large-project runs (deferred; the
+   CLI engine already skips nothing and reruns are cheap for Logan).
+
+---
+
 ## What to build next: SRA raw-read streaming path (Phase 3, now elevated)
 
 ### Why this is urgent
@@ -290,3 +351,57 @@ Tell Claude Code:
 > is `ERR15383529` (42× Alternaria alternata WGS PE151, already in samplesheet).
 > The conda env already has `sra-tools>=3.0`. See the implementation plan in
 > `docs/session_handoff.md` under 'What to build next'."
+
+---
+
+## Session 2026-06-19/20: Targeted search built, applied, reframed, and calibrated (D27–D29)
+
+Built **capability B** end to end and applied it once, with a full honesty/rigor pass.
+
+**Landed (commits on branch `claude/targeted-search-gbi-scan`, PR #4):**
+- `endophynd target` engine (`endophynd/target/`): reference inversion (D05); minimap2
+  for genome/marker queries, blastn for rDNA; targets = run accessions / BioProject
+  (ENA-expanded) / local FASTA; outputs a reverse-lookup table + matching sequences.
+- First application (D28): 10 GBI plant Logan datasets × an *Alternaria* genome →
+  DNA matching the query in **5/10** (Silene/Carpenteria/Ceanothus/Dudleya/Carex).
+  **Reframed honestly**: the tool reports "which datasets contain this DNA / which
+  fungal DNA is in the reads," NOT residency (endophyte/surface/lab/index-hop
+  unexcluded). `results/alternaria_vs_gbi10/REPORT.md`.
+- Multi-agent review → fixes: corrected the fabricated ERR15383529 identity (D19→D22),
+  code-correctness fixes, provenance, +21 tests (83 total), regenerated SUMMARY.
+- Calibration (D29): biologically-absent genome nulls (*Morchella/Boletus/Psilocybe*,
+  + *S. cerevisiae* which proved to be **real yeast**, not a valid null) + a seeded
+  query shuffle → **false-positive floor = 0 at ≥95%/≥125 bp**. Stress sweep: the
+  sub-100 bp leak is **conserved rDNA**, not repeats. Two-tier reporting (≥200
+  high-confidence + ≥125 sensitive) + seeded-subset reverse-classification QC.
+  `results/alternaria_vs_gbi10/calibration/README.md`.
+- Manuscript-ready précis: **`docs/methods_summary.md`**.
+
+**Reusable scripts:** `scripts/{scan_one_plant.sh, confidence_profile.py,
+collect_alt_hits.py, merge_hit_classification.py, fpr_calibration.py, stress_sweep.py,
+shuffle_genome.py, tiered_report.py}`. Calibration null genomes are NCBI-downloadable
+(accessions in `calibration/README.md`); the query genome is unpublished (md5 in
+`provenance.json`).
+
+**Deliberately NOT done** (low value / out of scope): full 10-dataset re-run at the
+new low minimap2 floor; sub-100 bp rDNA masking; index-hopping provenance check.
+
+## How to start the NEXT session — capability A (discovery: "what fungi are in here?")
+
+Goal: given an SRA accession with **ITS amplicon / shotgun reads**, recover the fungal
+ITS and classify it (UNITE) → a per-accession taxa table ("what is in here", blind).
+This is the *discovery* mirror of targeted mode (D02), and the spine the project was
+designed around.
+
+What already exists to build on:
+- The **`source=sra` streaming path** in `rule retrieve_and_bait` (merged parallel
+  work, D21/D24/D25; platform-aware; `fasterq-dump --stdout` → bbduk bait).
+- ITS primer seeds: `resources/its_primers.fa`; rDNA reference: `resources/rdna_ref.fa`;
+  locus assignment: `scripts/assign_locus_blast.py` (D17).
+- The Snakefile discovery DAG: triage → retrieve_and_bait → annotate_and_gate →
+  (dereplicate) → classify → feature table. Classify is still a stub — wiring UNITE
+  via q2-feature-classifier (or kraken2/vsearch for short reads) is the open piece.
+- D24 two-path design: ITS via SRA raw reads; protein-coding via Logan unitigs.
+
+First concrete step: pick an SRA accession with fungal ITS reads, run the discovery
+path to the gated ITS sequences, then wire classification against UNITE.

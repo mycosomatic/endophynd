@@ -1,0 +1,56 @@
+min aln length reached: 50 bp  (total mapped 7634)
+
+--- identity >= 0.99 ---
+class	L>=50	L>=75	L>=100	L>=125	L>=150	L>=200
+ALT	2511	2061	1839	1650	1388	75
+NMOR	1	0	0	0	0	0  <-- LEAK
+NSAC	29	11	9	8	6	4  <-- LEAK
+NBOL	6	2	0	0	0	0  <-- LEAK
+NPSI	42	0	0	0	0	0  <-- LEAK
+SHUF	0	0	0	0	0	0
+
+--- identity >= 0.97 ---
+class	L>=50	L>=75	L>=100	L>=125	L>=150	L>=200
+ALT	4204	3568	3182	2902	2319	124
+NMOR	10	0	0	0	0	0  <-- LEAK
+NSAC	124	13	10	9	6	4  <-- LEAK
+NBOL	392	4	0	0	0	0  <-- LEAK
+NPSI	1259	6	1	0	0	0  <-- LEAK
+SHUF	0	0	0	0	0	0
+
+--- identity >= 0.95 ---
+class	L>=50	L>=75	L>=100	L>=125	L>=150	L>=200
+ALT	4902	4228	3780	3432	2645	140
+NMOR	10	0	0	0	0	0  <-- LEAK
+NSAC	135	13	10	9	6	4  <-- LEAK
+NBOL	433	7	1	0	0	0  <-- LEAK
+NPSI	1510	11	2	0	0	0  <-- LEAK
+SHUF	0	0	0	0	0	0
+
+--- identity >= 0.90 ---
+class	L>=50	L>=75	L>=100	L>=125	L>=150	L>=200
+ALT	5451	4772	4283	3855	2854	162
+NMOR	16	5	3	2	1	0  <-- LEAK
+NSAC	145	21	15	11	6	4  <-- LEAK
+NBOL	435	9	1	0	0	0  <-- LEAK
+NPSI	1519	20	9	1	0	0  <-- LEAK
+SHUF	0	0	0	0	0	0
+
+--- identity >= 0.85 ---
+class	L>=50	L>=75	L>=100	L>=125	L>=150	L>=200
+ALT	5508	4829	4339	3903	2873	171
+NMOR	18	7	5	4	3	0  <-- LEAK
+NSAC	146	22	16	12	7	5  <-- LEAK
+NBOL	436	10	2	1	0	0  <-- LEAK
+NPSI	1520	21	10	2	0	0  <-- LEAK
+SHUF	0	0	0	0	0	0
+
+--- identity >= 0.80 ---
+class	L>=50	L>=75	L>=100	L>=125	L>=150	L>=200
+ALT	5511	4832	4342	3906	2876	173
+NMOR	18	7	5	4	3	0  <-- LEAK
+NSAC	147	23	17	13	8	6  <-- LEAK
+NBOL	437	11	3	2	1	1  <-- LEAK
+NPSI	1520	21	10	2	0	0  <-- LEAK
+SHUF	0	0	0	0	0	0
+

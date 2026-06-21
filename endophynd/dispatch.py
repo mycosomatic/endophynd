@@ -61,7 +61,9 @@ class RetrievalRoute:
         The returned command writes baited FASTA to output_path.
         For Logan: the whole unitig file never touches disk — stream only.
         For local: bbduk reads the file directly.
-        For SRA: not yet implemented (Phase 3).
+        For SRA: stream raw reads via fasterq-dump → bait, platform-aware. The
+        runtime authority for the discovery SRA command is workflow/Snakefile's
+        retrieve_and_bait rule; this mirrors its core flags.
         """
         stats_arg = f"stats={stats_path}" if stats_path else ""
 
@@ -84,9 +86,18 @@ class RetrievalRoute:
             ).strip()
 
         if self.source == Source.SRA:
-            raise NotImplementedError(
-                f"SRA streaming not yet implemented (Phase 3). Accession: {self.accession}"
-            )
+            # Stream raw reads via fasterq-dump → bait. Long-read platforms are
+            # single-fragment (no --split-spot / no interleaving).
+            acc = self.accession
+            long_read = self.platform in (Platform.PACBIO, Platform.NANOPORE)
+            split = "" if long_read else "--split-spot"
+            inter = "int=f" if long_read else "int=t"
+            return (
+                f"fasterq-dump --stdout --skip-technical {split} --threads {threads} {acc} "
+                f"| bbduk.sh in=stdin.fq {inter} ref={seed_ref} "
+                f"outm={output_path} {stats_arg} "
+                f"k={k} hdist={hdist} minlength={minlength} threads={threads}"
+            ).strip()
 
         raise ValueError(f"Unknown source: {self.source}")
 

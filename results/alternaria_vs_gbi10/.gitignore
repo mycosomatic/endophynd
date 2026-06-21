@@ -1,0 +1,6 @@
+# Keep the distilled, reviewable record (REPORT.md, SUMMARY.tsv, hits/) in git.
+# Exclude bulky, reproducible intermediates (re-creatable via scripts/scan_one_plant.sh).
+# Anchored (leading slash) so hits/per_plant/ is NOT matched.
+/per_plant/
+/refs/
+/calibration/stress/
