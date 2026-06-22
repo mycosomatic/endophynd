@@ -18,6 +18,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 import classify_its_blast as cib  # noqa: E402
 import aggregate_taxa as agg  # noqa: E402
+import background_model as bg  # noqa: E402
 
 UNITE = (
     "Alternaria_tenuissima|MT1|SH1.10FU|refs|"
@@ -116,3 +117,54 @@ def test_recovery_ok_no_when_below_threshold(tmp_path):
     data = [l.split("\t") for l in out.read_text().strip().splitlines()[1:]]
     rec = [r for r in data if r[0] == "recovery"][0]
     assert rec[2] == "no"
+
+
+# ---------------------------------------------------------------------------
+# background/contamination model (review #4)
+# ---------------------------------------------------------------------------
+
+def test_background_model_prevalence_flags_shared_genera():
+    samples = [
+        ("s1", True, {"Alternaria": 8, "Hyphopichia": 40, "Derxomyces": 30}),
+        ("s2", True, {"Hyphopichia": 100, "Derxomyces": 110}),
+        ("s3", True, {"Hyphopichia": 50, "Cladosporium": 5}),
+        ("s4", False, {"Alternaria": 99}),  # not recovered -> excluded entirely
+    ]
+    m = bg.build_model(samples, prevalence_fraction=0.5)
+    assert m["recovered"] == ["s1", "s2", "s3"] and m["excluded"] == ["s4"]
+    gs = m["genus_stats"]
+    # ubiquitous genera -> background; the not-recovered s4's Alternaria must not count
+    assert gs["Hyphopichia"]["background"] == "yes"   # 3/3
+    assert gs["Derxomyces"]["background"] == "yes"     # 2/3 >= 0.5
+    assert gs["Alternaria"]["background"] == "no"      # 1/3 (s4 excluded)
+    assert gs["Alternaria"]["n_present"] == 1
+    # distinctive = the signal: non-background genera per recovered sample
+    assert m["distinctive"]["s1"] == [("Alternaria", 8)]
+    assert m["distinctive"]["s2"] == []                # only background genera
+    assert m["distinctive"]["s3"] == [("Cladosporium", 5)]
+
+
+def test_background_model_end_to_end(tmp_path):
+    def write_table(sample, recovery, genera):
+        d = tmp_path / sample
+        d.mkdir()
+        lines = ["rank\tname\tn_features\tread_support"]
+        for g, r in genera.items():
+            lines.append(f"genus\t{g}\t1\t{r}")
+        lines.append(f"TOTAL\tfungal\t{len(genera)}\t{sum(genera.values())}")
+        lines.append("TOTAL\tall_its\t999\t999")
+        lines.append(f"recovery\trecovery_ok\t{recovery}\t10")
+        (d / "fungal_taxa_table.tsv").write_text("\n".join(lines) + "\n")
+
+    write_table("posA", "yes", {"Alternaria": 8, "Hyphopichia": 40})
+    write_table("negB", "yes", {"Hyphopichia": 100})
+    out = tmp_path / "bg"
+    # n=2: use a strict threshold so only the ubiquitous genus (2/2) is background;
+    # Alternaria (1/2=0.5) stays distinctive. (Default 0.5 suits larger n.)
+    bg.main(["--results-dir", str(tmp_path), "--out-dir", str(out), "--prevalence", "0.75"])
+    bgtab = {r.split("\t")[0]: r.split("\t") for r in
+             (out / "genus_background.tsv").read_text().strip().splitlines()[1:]}
+    assert bgtab["Hyphopichia"][-1] == "yes"   # in both -> background
+    assert bgtab["Alternaria"][-1] == "no"     # only posA -> distinctive
+    distinct = (out / "distinctive_taxa.tsv").read_text()
+    assert "posA\tAlternaria" in distinct
