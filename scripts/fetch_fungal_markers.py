@@ -14,13 +14,17 @@ records the source accession and original defline for provenance.
 """
 from __future__ import annotations
 
+import argparse
+import os
 import sys
 import time
 import urllib.parse
 import urllib.request
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
-EMAIL = "harte.singer@gmail.com"
+# NCBI etiquette: identify yourself. Set via --email or NCBI_EMAIL/ENTREZ_EMAIL env;
+# main() resolves it (no hard-coded address).
+EMAIL = os.environ.get("NCBI_EMAIL") or os.environ.get("ENTREZ_EMAIL") or ""
 
 # (label_marker, genus, lineage, extra title terms, slen range)
 PANEL = [
@@ -66,7 +70,18 @@ def efetch_fasta(uid: str) -> str:
 
 
 def main() -> None:
-    out = sys.argv[1] if len(sys.argv) > 1 else "resources/fungal_markers.fa"
+    global EMAIL
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("out", nargs="?", default="resources/fungal_markers.fa",
+                    help="output FASTA (default: resources/fungal_markers.fa)")
+    ap.add_argument("--email", default=EMAIL,
+                    help="contact email for NCBI EUtils (or set NCBI_EMAIL/ENTREZ_EMAIL)")
+    args = ap.parse_args()
+    if not args.email:
+        ap.error("NCBI requires a contact email: pass --email or set NCBI_EMAIL")
+    EMAIL = args.email
+    out = args.out
     records = []
     for marker, genus, lineage, extra, slen in PANEL:
         term = f"{genus}[Organism] AND {extra} AND {slen}[SLEN]"
