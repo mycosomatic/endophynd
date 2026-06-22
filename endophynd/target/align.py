@@ -17,9 +17,11 @@ indexes is the (tiny) query.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -240,6 +242,30 @@ def parse_blastn_tab(
 # Run one target
 # ---------------------------------------------------------------------------
 
+# Stderr patterns that mean a target is GENUINELY absent (the object/accession does
+# not exist) — as opposed to a transient stream/network failure, which must NOT be
+# reported as "absent" (that would be a silent false negative in a large scan).
+_ABSENT_STDERR_PATTERNS = re.compile(
+    r"(404"
+    r"|NoSuchKey"
+    r"|Not Found"
+    r"|does not exist"
+    r"|no such file or directory"
+    r"|cannot be found"
+    r"|failed to resolve accession"
+    r"|is not available"
+    r"|could not be resolved)",
+    re.IGNORECASE,
+)
+
+
+def _failure_status(stderr_text: str) -> str:
+    """Classify a non-zero stream/aligner exit. Return 'absent' ONLY when stderr
+    shows the object/accession genuinely does not exist; otherwise 'error'
+    (transient/network/unknown — conservatively never a silent absence call)."""
+    return "absent" if _ABSENT_STDERR_PATTERNS.search(stderr_text or "") else "error"
+
+
 def align_target(
     target: Target,
     query: QuerySpec,
@@ -263,42 +289,64 @@ def align_target(
         max_target_seqs=max_target_seqs, evalue=evalue,
     )
 
-    log_fh = open(log_path, "a") if log_path else subprocess.DEVNULL
+    # Capture stderr to a temp file (not a pipe — avoids deadlock while we drain
+    # stdout) so we can both append it to the log and classify any failure.
+    err_fd, err_path = tempfile.mkstemp(prefix="endophynd_align_", suffix=".err")
     try:
-        proc = subprocess.Popen(
-            cmd, shell=True, executable="/bin/bash",
-            stdout=subprocess.PIPE, stderr=log_fh, text=True,
-        )
-        assert proc.stdout is not None
-        if aligner == Aligner.MINIMAP2:
-            hits = parse_minimap2_sam(
-                proc.stdout, query,
-                min_identity=min_identity, min_aln_len=min_aln_len,
-                min_query_cov=min_query_cov,
+        with os.fdopen(err_fd, "w") as err_fh:
+            proc = subprocess.Popen(
+                cmd, shell=True, executable="/bin/bash",
+                stdout=subprocess.PIPE, stderr=err_fh, text=True,
             )
-        else:
-            hits = parse_blastn_tab(
-                proc.stdout, query,
-                min_identity=min_identity, min_aln_len=min_aln_len,
-                min_query_cov=min_query_cov,
-            )
-        proc.stdout.close()
-        rc = proc.wait()
+            assert proc.stdout is not None
+            if aligner == Aligner.MINIMAP2:
+                hits = parse_minimap2_sam(
+                    proc.stdout, query,
+                    min_identity=min_identity, min_aln_len=min_aln_len,
+                    min_query_cov=min_query_cov,
+                )
+            else:
+                hits = parse_blastn_tab(
+                    proc.stdout, query,
+                    min_identity=min_identity, min_aln_len=min_aln_len,
+                    min_query_cov=min_query_cov,
+                )
+            proc.stdout.close()
+            rc = proc.wait()
+        stderr_text = Path(err_path).read_text(errors="replace")
+        if log_path:
+            with open(log_path, "a") as lf:
+                lf.write(stderr_text)
     finally:
-        if log_fh not in (subprocess.DEVNULL, None):
-            log_fh.close()
+        try:
+            os.unlink(err_path)
+        except OSError:
+            pass
 
     if rc != 0 and not hits:
-        # Distinguish "Logan has no such accession" from a real failure where we can.
-        status = "absent" if target.source == Source.LOGAN else "error"
+        # A non-zero pipe exit with no hits: report 'absent' ONLY when stderr shows
+        # the object/accession genuinely does not exist; a transient stream/network
+        # failure is 'error' (never a silent false absence in a large scan).
+        status = _failure_status(stderr_text)
+        first_err = next((ln for ln in stderr_text.splitlines() if ln.strip()), "")
         return TargetResult(
             accession=target.accession, source=target.source, status=status,
-            hits=[], message=f"stream/aligner exited {rc}; see log.",
+            hits=[], message=f"stream/aligner exited {rc} ({status}): {first_err[:200]}",
             bioproject=target.bioproject,
         )
 
+    # rc == 0, or rc != 0 but we still parsed hits. The latter means the stream died
+    # partway (e.g. network drop) AFTER emitting some hits: the result is real but may
+    # be TRUNCATED — flag it rather than silently calling it complete.
     status = "ok" if hits else "empty"
+    message = None
+    if rc != 0 and hits:
+        first_err = next((ln for ln in stderr_text.splitlines() if ln.strip()), "")
+        message = (
+            f"stream exited {rc} after {len(hits)} hits — results may be truncated: "
+            f"{first_err[:160]}"
+        )
     return TargetResult(
         accession=target.accession, source=target.source, status=status,
-        hits=hits, bioproject=target.bioproject,
+        hits=hits, message=message, bioproject=target.bioproject,
     )

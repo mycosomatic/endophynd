@@ -17,7 +17,7 @@ import pytest
 from typer.testing import CliRunner
 
 from endophynd.cli import app
-from endophynd.target.align import align_target
+from endophynd.target.align import align_target, _failure_status
 from endophynd.target.models import Aligner, QuerySpec, QueryType, Source, Target
 from endophynd.target.query import (
     build_blast_db,
@@ -94,6 +94,49 @@ def test_detect_query_type_genome(tmp_path):
     query.write_text(_first_record(FIXTURE))
     qtype = detect_query_type(str(query), RDNA_REF)
     assert qtype == QueryType.GENOME
+
+
+# ---------------------------------------------------------------------------
+# absent-vs-error failure classification (review #2: no silent false negatives)
+# ---------------------------------------------------------------------------
+
+def test_failure_status_absent_when_genuinely_missing():
+    for stderr in [
+        "fatal error: An error occurred (404) when calling the HeadObject operation: Not Found",
+        "download failed: NoSuchKey The specified key does not exist",
+        "cat: x.fa: No such file or directory",
+        "err: cannot resolve: failed to resolve accession 'SRR999999999'",
+    ]:
+        assert _failure_status(stderr) == "absent", stderr
+
+
+def test_failure_status_error_on_transient_or_unknown():
+    # A transient network/tool failure must NOT be reported as 'absent'.
+    for stderr in [
+        "fatal error: Could not connect to the endpoint URL",
+        "Connection reset by peer",
+        "zstd: error 70 : Write error : Broken pipe",
+        "",
+    ]:
+        assert _failure_status(stderr) == "error", stderr
+
+
+@pytest.mark.skipif(not _HAVE_BLAST, reason="blastn/makeblastdb not installed")
+def test_align_target_missing_local_is_not_ok(tmp_path):
+    # A LOCAL target whose file does not exist must not return 'ok'/crash; the
+    # failure branch runs and classifies it (here 'absent' — "No such file").
+    query = tmp_path / "q.fa"
+    query.write_text(_first_record(FIXTURE))
+    db_prefix = build_blast_db(str(query), tmp_path / "db")
+    qspec = QuerySpec(
+        fasta_path=str(query), query_type=QueryType.GENOME,
+        record_lengths=read_fasta_lengths(str(query)), blast_db_prefix=db_prefix,
+    )
+    target = Target(accession="missing", source=Source.LOCAL,
+                    local_path=str(tmp_path / "does_not_exist.fasta"))
+    result = align_target(target, qspec, Aligner.BLASTN)
+    assert result.status in ("absent", "error")
+    assert result.n_hits == 0
 
 
 @pytest.mark.skipif(not _HAVE_BLAST, reason="blastn not installed")
