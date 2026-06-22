@@ -1,0 +1,3 @@
+run	species	family	d28_alternaria_call	total_reads	baited_reads	unique_baited	itsx_ITS1	itsx_ITS2	confident_fungal_unique	confident_fungal_readsupport	alternaria_unique_ITS	alternaria_call
+SRR30183952	Silene_verecunda	Caryophyllaceae	positive	230708785	1202249	210128	20623	1397	256	262	8	PRESENT
+SRR30183458	Streptanthus_glandulosus	Brassicaceae	negative	219969757	11075239	1118516	85138	6117	619	626	0	absent

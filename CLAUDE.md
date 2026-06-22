@@ -20,11 +20,22 @@ full design. See `docs/decisions.md` for the append-only decision log.
 - Log every significant decision in `docs/decisions.md`.
 
 ## Current phase
-**Targeted search (capability B) is built, applied, and calibrated** (D27–D29). Next
-session: **discovery mode (capability A) — "what fungi are in here?" from SRA ITS
-data** (classify reads against UNITE; see handoff).
+**Both capabilities now exercised on real data.** Targeted search (capability B) is
+built, applied, and calibrated (D27–D29). **Discovery (capability A) is validated
+end-to-end on real plant WGS (D30)** — recover fungal ITS from SRA reads → classify
+vs UNITE. Next: scale the discovery pilot to all 10 GBI datasets, and wire the
+validated chain into the Snakefile (classify rule is still a stub).
 
-**Status as of 2026-06-20:**
+**Capability A pilot (D30, 2026-06-21):** `results/gbi_its_discovery_pilot/`. A
+controlled 2-dataset run (one D28 *Alternaria*-positive host, one negative) found
+*Alternaria* ITS in *Silene* (positive) and none in *Streptanthus* (negative) —
+independently reproducing D28 via a different molecule/data/method. Validated chain:
+`prefetch`→`fastq-dump`(stream local `.sra`)→`bbduk` bait (int=f **threads=4**)→
+`vsearch` derep→`ITSx`→`blastn` vs **UNITE 10.0** (≥90% id; this BLAST step — not
+`sintax k:Fungi` — is the fungal discriminator). UNITE is local at
+`/media/harte/extradrive1/UNITE/`; indices in `~/endophynd_cache/db/unite/`.
+
+**Status as of 2026-06-20 (capability B):**
 - **Targeted search (capability B, D27) built + validated**: `endophynd target` —
   point a query (genome/marker/rDNA) at run accessions, a BioProject, or local FASTAs;
   reference inversion (D05) streams each target through the query (minimap2 for

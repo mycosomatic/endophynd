@@ -1,0 +1,9 @@
+run	query_id	pct_identity	aln_len_bp	unite_species	read_size
+SRR30183952	SRR30183952_its3741;size=1	100.0	107	Alternaria_tenuissima	1
+SRR30183952	SRR30183952_its5895;size=1	100.0	55	Alternaria_kareliniae	1
+SRR30183952	SRR30183952_its9481;size=1	100.0	73	Alternaria_tenuissima	1
+SRR30183952	SRR30183952_its10337;size=1	100.0	54	Alternaria_tenuissima	1
+SRR30183952	SRR30183952_its2731;size=1	98.851	87	Alternaria_metachromatica	1
+SRR30183952	SRR30183952_its1927;size=1	98.077	52	Alternaria_metachromatica	1
+SRR30183952	SRR30183952_its4086;size=1	98.0	100	Alternaria_kareliniae	1
+SRR30183952	SRR30183952_its4087;size=1	97.0	100	Alternaria_kareliniae	1

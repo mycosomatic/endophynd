@@ -405,3 +405,53 @@ What already exists to build on:
 
 First concrete step: pick an SRA accession with fungal ITS reads, run the discovery
 path to the gated ITS sequences, then wire classification against UNITE.
+
+---
+
+## Session 2026-06-21: Capability A discovery validated on real plant WGS (D30)
+
+Built and validated the **discovery path** end to end on real GBI plant data. Record:
+`results/gbi_its_discovery_pilot/`. Decision: **D30**.
+
+### What ran
+A controlled 2-dataset pilot — one D28 *Alternaria*-positive host vs one negative,
+each at **full depth**:
+- `SRR30183952` *Silene verecunda* (D28 **positive**) — 230.7 M reads
+- `SRR30183458` *Streptanthus glandulosus* (D28 **negative**) — 220.0 M reads
+
+Chain: `prefetch` → `fastq-dump` (stream local `.sra`) → `bbduk` bait
+(`rrna_seeds.fa`, k=31 hdist=1 minlen=100, **int=f threads=4**) → `vsearch` derep →
+`ITSx -t F,T` (ITS1/ITS2, partial) → `vsearch` derep(relabel) → **blastn vs UNITE 10.0**
+(≥90% id, ≥60% qcov) → per-genus fungal table. `vsearch --sintax` kept as corroboration.
+
+### Result (the headline)
+*Alternaria* ITS **present in *Silene*** (8 unique ITS, 97–100% id, incl. *A. tenuissima*
+100%/107 bp) and **absent in *Streptanthus*** (which has 619 *other* confident fungal
+ITS). This reproduces the D28 *Alternaria* call via a different molecule (rDNA vs
+nuclear), data type (SRA reads vs Logan), and method (discovery vs targeted) —
+**orthogonal confirmation.**
+
+### Two things to carry forward
+1. **The fungal/non-fungal discriminator is BLAST identity, NOT `sintax k:Fungi`.**
+   Against a Fungi-only DB, sintax calls *everything* `k:Fungi` (incl. host plant).
+   Decide fungal by ≥90% blastn over ITSx-extracted ITS1/ITS2.
+2. **Recovered ITS is short (~50–120 bp, median ~77)** — genus/family-reliable,
+   species only opportunistically. To extend: merge R1/R2 pairs before baiting.
+
+### Environment gotchas (cost real time — don't repeat)
+- `fasterq-dump --stdout` hangs from remote (sra-tools 2.11.3) and needs ~193 GB
+  scratch/dataset locally → `prefetch` + `fastq-dump` stream from local `.sra`.
+- `bbduk` stdin reader crashes at threads=16 ("missing plus") → **threads=4** on stdin.
+- UNITE 10.0 (Fungi) is local: `/media/harte/extradrive1/UNITE/`; derived SINTAX +
+  BLAST DBs in `~/endophynd_cache/db/unite/` (built; reuse them).
+
+### Open next steps (in priority order)
+1. **Scale to all 10 GBI** — does *Alternaria*-ITS presence track the D28 5-positive/
+   5-negative split? (the real population validation). ~3–4 h streaming; scripts in
+   `results/gbi_its_discovery_pilot/scripts/` are ready to loop over `plants10.tsv`.
+2. **Background model / contamination control** — the same genera dominate both
+   unrelated hosts; build a "shared across all GBI samples = contamination signature"
+   subtraction, ideally a kit/blank.
+3. **Wire into the Snakefile** — promote the validated chain into `annotate_and_gate`
+   (ITSx for SRA reads) + `classify` (blastn-vs-UNITE, replacing the stub) + a reusable
+   script; add a tiny test. classify is still a stub.

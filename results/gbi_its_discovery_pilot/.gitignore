@@ -1,0 +1,8 @@
+# Large intermediates are process-then-delete; never commit raw/bait/ITS sequence files.
+*.fa
+*.fasta
+*.fastq
+*.fq
+*.sra
+*.sintax.tsv
+*.blast.tsv
