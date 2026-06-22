@@ -1,0 +1,58 @@
+{
+  "record": "GBI ITS-discovery pilot (capability A) — positive vs negative",
+  "date_utc": "2026-06-21",
+  "git_commit": "9859a5e4174d642c92b5bea2a4c048362fec9440",
+  "git_branch": "claude/targeted-search-gbi-scan",
+  "capability": "A (discovery: recover fungal ITS from SRA reads, classify vs UNITE)",
+  "datasets": [
+    {"run": "SRR30183952", "host": "Silene verecunda", "family": "Caryophyllaceae",
+     "d28_alternaria_call": "positive", "reads": 230708785, "gbases": 69.2, "platform": "ILLUMINA", "strategy": "WGS"},
+    {"run": "SRR30183458", "host": "Streptanthus glandulosus", "family": "Brassicaceae",
+     "d28_alternaria_call": "negative", "reads": 219969757, "gbases": 66.0, "platform": "ILLUMINA", "strategy": "WGS"}
+  ],
+  "reference_db": {
+    "name": "UNITE general FASTA release for Fungi",
+    "version": "10.0",
+    "release_date": "2025-02-19",
+    "doi": "10.15156/BIO/3301229",
+    "file": "/media/harte/extradrive1/UNITE/sh_general_release_19.02.2025/sh_general_release_dynamic_19.02.2025.fasta",
+    "md5": "76a080916fbeed33c4a62a42a354c105",
+    "n_sequences": 102137,
+    "derived": "~/endophynd_cache/db/unite/{unite_sintax.fasta, unite_blast.*}"
+  },
+  "pipeline": {
+    "retrieve": "prefetch <acc> --max-size 50g ; fastq-dump --split-spot --skip-technical -Z <local.sra>",
+    "bait": "bbduk in=stdin.fq int=f ref=resources/rrna_seeds.fa k=31 hdist=1 minlength=100 threads=4",
+    "derep1": "vsearch --derep_fulllength --sizeout --minseqlength 80",
+    "annotate": "ITSx -t F,T --save_regions all --partial 50 --minlen 50 --heuristics T --preserve T --cpu 16",
+    "derep2": "vsearch --derep_fulllength --relabel <acc>_its --sizeout --minseqlength 50",
+    "classify_primary": "blastn vs unite_blast, -perc_identity 90 -qcov_hsp_perc 60 -max_target_seqs 1 (DISCRIMINATOR)",
+    "classify_aux": "vsearch --sintax --db unite_sintax.fasta --sintax_cutoff 0.80 --strand both (corroboration only)",
+    "discriminator_note": "Fungal vs non-fungal is decided by BLAST identity to UNITE on ITSx-extracted ITS1/ITS2, NOT by sintax k:Fungi (which labels all queries Fungi against a Fungi-only reference)."
+  },
+  "tool_versions": {
+    "sra-tools_fastq-dump": "2.11.3",
+    "sra-tools_prefetch": "2.11.3",
+    "bbmap_bbduk": "39.81",
+    "vsearch": "2.31.0",
+    "ITSx": "1.1.3",
+    "blastn": "2.16.0+"
+  },
+  "results": {
+    "SRR30183952": {"baited": 1202249, "unique_baited": 210128, "itsx_ITS1": 20623, "itsx_ITS2": 1397,
+      "confident_fungal_unique": 256, "confident_fungal_readsupport": 262, "alternaria_unique_ITS": 8, "alternaria": "PRESENT (97-100% id; A. tenuissima 100%/107bp)"},
+    "SRR30183458": {"baited": 11075239, "unique_baited": 1118516, "itsx_ITS1": 85138, "itsx_ITS2": 6117,
+      "confident_fungal_unique": 619, "confident_fungal_readsupport": 626, "alternaria_unique_ITS": 0, "alternaria": "absent"}
+  },
+  "headline": "Alternaria ITS present in Silene (D28 positive), absent in Streptanthus (D28 negative) — independent confirmation of D28 via a different molecule, data type, and method.",
+  "limits": [
+    "n=2 controlled pilot, not the 10-dataset population test",
+    "shared dominant genera across both unrelated hosts suggest a reagent/environmental/index-hop background; source undetermined (per D28)",
+    "Alternaria low-abundance (8 ITS, size=1); index-hopping not fully excluded but positive/negative specificity argues against it",
+    "does not establish residency (endophyte vs surface vs lab)"
+  ],
+  "notes_engineering": [
+    "fasterq-dump --stdout hangs from remote (2.11.3) and needs ~193GB scratch locally -> use prefetch + fastq-dump stream from local .sra",
+    "bbduk stdin FASTQ reader crashes at threads=16 (multithreaded record misalignment) -> threads=4 for stdin baiting"
+  ]
+}
