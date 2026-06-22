@@ -88,11 +88,31 @@ def test_aggregate_taxa_groups_by_genus(tmp_path):
         "c;size=9\t9\tno\tunclassified\t\t\t\n"
     )
     out = tmp_path / "table.tsv"
-    agg.main(["--taxonomy", str(tax), "--out", str(out)])
+    agg.main(["--taxonomy", str(tax), "--out", str(out), "--min-its", "2"])
     rows = [l.split("\t") for l in out.read_text().strip().splitlines()]
     header, data = rows[0], rows[1:]
     assert header == ["rank", "name", "n_features", "read_support"]
     alt = [r for r in data if r[1] == "Alternaria"][0]
     assert alt == ["genus", "Alternaria", "2", "8"]  # 5+3 reads, 2 features; 'c' excluded
-    total = [r for r in data if r[0] == "TOTAL"][0]
-    assert total[2] == "2" and total[3] == "8"
+    fungal = [r for r in data if r[0] == "TOTAL" and r[1] == "fungal"][0]
+    assert fungal[2] == "2" and fungal[3] == "8"
+    # all_its = recovery proxy: all 3 features (incl non-fungal 'c'), 5+3+9 reads
+    all_its = [r for r in data if r[0] == "TOTAL" and r[1] == "all_its"][0]
+    assert all_its[2] == "3" and all_its[3] == "17"
+    # 3 ITS features >= min-its 2 -> recovery_ok=yes
+    rec = [r for r in data if r[0] == "recovery"][0]
+    assert rec[1] == "recovery_ok" and rec[2] == "yes"
+
+
+def test_recovery_ok_no_when_below_threshold(tmp_path):
+    tax = tmp_path / "tax.tsv"
+    # only 1 ITS feature recovered -> a "failed/low-yield" run; absence not trustworthy
+    tax.write_text(
+        "feature_id\tsize\tfungal\ttaxon\tpct_identity\taln_len\tunite_subject\n"
+        "a;size=1\t1\tno\tunclassified\t\t\t\n"
+    )
+    out = tmp_path / "table.tsv"
+    agg.main(["--taxonomy", str(tax), "--out", str(out), "--min-its", "10"])
+    data = [l.split("\t") for l in out.read_text().strip().splitlines()[1:]]
+    rec = [r for r in data if r[0] == "recovery"][0]
+    assert rec[2] == "no"

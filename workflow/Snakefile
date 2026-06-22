@@ -569,6 +569,8 @@ rule build_feature_table:
         taxonomy=RESULTS / "{sample}" / "taxonomy.tsv",
     output:
         table=RESULTS / "{sample}" / "fungal_taxa_table.tsv",
+    params:
+        min_its=config.get("recovery", {}).get("min_its_features", 10),
     log:
         COLD / "logs" / "table" / "{sample}.log",
     conda:
@@ -578,11 +580,13 @@ rule build_feature_table:
         mkdir -p $(dirname {output.table})
         mkdir -p $(dirname {log})
         # Per-accession answer to "what fungi are here": confident fungal ITS features
-        # grouped by genus, weighted by read support.
+        # grouped by genus, weighted by read support. Emits a recovery_ok flag so an
+        # apparent taxon-absence can be distinguished from a failed/low-yield run.
         python scripts/aggregate_taxa.py \
             --taxonomy {input.taxonomy} \
-            --out {output.table} 2>> {log}
-        echo "[table] {wildcards.sample}: fungal taxa table written" > {log}
+            --out {output.table} \
+            --min-its {params.min_its} 2>> {log}
+        echo "[table] {wildcards.sample}: fungal taxa table written" >> {log}
         """
 
 

@@ -87,6 +87,14 @@ classify:
 
 classify_threads: 4                   # threads for blastn in the classify rule
 
+# --- Recovery control ---
+# A taxon being "absent" from a dataset is only meaningful if the dataset actually
+# yielded ITS. recovery_ok = (total ITS features recovered, any origin) >= min_its_features.
+# Datasets with recovery_ok=no should be excluded from absence calls when comparing
+# across accessions (an apparent absence there may just be a failed/low-yield run).
+recovery:
+  min_its_features: 10
+
 # --- Output ---
 output:
   results_dir: null                     # overridden to cold_dir/results at runtime
