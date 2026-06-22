@@ -121,9 +121,13 @@ def test_stream_command_logan_is_a_pipe_no_disk():
 
 
 def test_stream_command_sra_to_fasta():
+    # SRA now streams a locally-prefetched .sra via fastq-dump (NOT the hang-prone
+    # `fasterq-dump --stdout`); align_target does the prefetch and passes sra_path.
     t = Target(accession="SRR1", source=Source.SRA)
-    cmd = build_stream_command(t, to_fasta=True)
-    assert "fasterq-dump" in cmd and "--stdout" in cmd
+    cmd = build_stream_command(t, to_fasta=True, sra_path="/tmp/SRR1/SRR1.sra")
+    assert "fastq-dump" in cmd
+    assert "fasterq-dump" not in cmd and "--stdout" not in cmd
+    assert "/tmp/SRR1/SRR1.sra" in cmd
     assert "awk" in cmd  # FASTQ→FASTA conversion appended
 
 

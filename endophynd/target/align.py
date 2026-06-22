@@ -46,13 +46,16 @@ _CIGAR_RE = re.compile(r"(\d+)([MIDNSHP=X])")
 # Stream command (dataset → stdout as FASTA/FASTQ)
 # ---------------------------------------------------------------------------
 
-def build_stream_command(target: Target, to_fasta: bool, threads: int = 4) -> str:
+def build_stream_command(
+    target: Target, to_fasta: bool, threads: int = 4, sra_path: Optional[str] = None,
+) -> str:
     """
     Shell snippet that writes the target's sequences to stdout.
 
     ``to_fasta`` converts FASTQ sources to FASTA (needed for blastn).  Logan
     unitigs and most local files are already FASTA, so conversion is a no-op
-    there.
+    there.  For SRA, ``sra_path`` is the locally-prefetched ``.sra`` to stream
+    (align_target prefetches it first; see the note there).
     """
     if target.source == Source.LOCAL:
         path = target.local_path or ""
@@ -74,15 +77,15 @@ def build_stream_command(target: Target, to_fasta: bool, threads: int = 4) -> st
         return f"aws s3 cp {s3} - --no-sign-request | zstdcat"
 
     if target.source == Source.SRA:
-        # fasterq-dump streams FASTQ to stdout. --skip-technical drops adapter/
-        # technical spots (consistent with the discovery Snakefile).
-        # NOTE: --split-spot assumes paired/short reads; long-read (PacBio/ONT)
-        # runs are not yet platform-distinguished on this targeted path — the
-        # discovery Snakefile's retrieve_and_bait is platform-aware (D25).
-        base = (
-            f"fasterq-dump --stdout --skip-technical --split-spot --threads {threads} "
-            f"{target.accession}"
-        )
+        # Stream a LOCAL prefetched .sra with fastq-dump (legacy): reliable, ~zero
+        # scratch, and — unlike `fasterq-dump --stdout` — it does NOT hang from
+        # remote on sra-tools 2.11.3 (the failure mode the discovery path hit, D30/D31).
+        # align_target prefetches the .sra and passes sra_path here.
+        # --split-spot emits each read of a spot (harmless for single-end long reads);
+        # --skip-technical drops adapter/index spots. fastq-dump -Z emits standard
+        # unwrapped 4-line FASTQ, so _FQ2FA is safe.
+        sra = sra_path or f"{target.accession}.sra"
+        base = f"fastq-dump --split-spot --skip-technical -Z {sra}"
         if to_fasta:
             base = f"{base} | {_FQ2FA}"
         return base
@@ -282,7 +285,37 @@ def align_target(
 ) -> TargetResult:
     """Stream one target through the query and return its filtered hits."""
     to_fasta = aligner == Aligner.BLASTN
-    stream_cmd = build_stream_command(target, to_fasta, threads=threads)
+
+    # SRA: prefetch the .sra locally first, then stream it. `fasterq-dump --stdout`
+    # hangs from remote on sra-tools 2.11.3, so we mirror the validated discovery
+    # retrieval (prefetch -> fastq-dump on the local .sra). The temp dir is removed
+    # in `finally`. NOTE: each SRA target lands its own (compressed) .sra on disk
+    # transiently — watch disk when streaming many SRA targets in parallel.
+    sra_workdir = None
+    if target.source == Source.SRA:
+        sra_workdir = tempfile.mkdtemp(prefix="endophynd_sra_")
+        pf = subprocess.run(
+            ["prefetch", target.accession, "--max-size", "100g", "-O", sra_workdir],
+            capture_output=True, text=True,
+        )
+        if log_path:
+            with open(log_path, "a") as lf:
+                lf.write(pf.stdout or "")
+                lf.write(pf.stderr or "")
+        sra_file = os.path.join(sra_workdir, target.accession, f"{target.accession}.sra")
+        if pf.returncode != 0 or not os.path.exists(sra_file):
+            shutil.rmtree(sra_workdir, ignore_errors=True)
+            status = _failure_status(pf.stderr or "")
+            first_err = next((ln for ln in (pf.stderr or "").splitlines() if ln.strip()), "")
+            return TargetResult(
+                accession=target.accession, source=target.source, status=status,
+                hits=[], message=f"prefetch exited {pf.returncode} ({status}): {first_err[:200]}",
+                bioproject=target.bioproject,
+            )
+        stream_cmd = build_stream_command(target, to_fasta, threads=threads, sra_path=sra_file)
+    else:
+        stream_cmd = build_stream_command(target, to_fasta, threads=threads)
+
     cmd = build_align_command(
         stream_cmd, aligner, query,
         threads=threads, minimap2_preset=minimap2_preset,
@@ -322,6 +355,8 @@ def align_target(
             os.unlink(err_path)
         except OSError:
             pass
+        if sra_workdir:
+            shutil.rmtree(sra_workdir, ignore_errors=True)
 
     if rc != 0 and not hits:
         # A non-zero pipe exit with no hits: report 'absent' ONLY when stderr shows
