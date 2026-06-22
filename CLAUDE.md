@@ -20,11 +20,15 @@ full design. See `docs/decisions.md` for the append-only decision log.
 - Log every significant decision in `docs/decisions.md`.
 
 ## Current phase
-**Both capabilities now exercised on real data.** Targeted search (capability B) is
-built, applied, and calibrated (D27–D29). **Discovery (capability A) is validated
-end-to-end on real plant WGS (D30)** — recover fungal ITS from SRA reads → classify
-vs UNITE. Next: scale the discovery pilot to all 10 GBI datasets, and wire the
-validated chain into the Snakefile (classify rule is still a stub).
+**Both capabilities now exercised on real data, and the discovery method is wired
+into the pipeline.** Targeted search (capability B) is built, applied, and calibrated
+(D27–D29). **Discovery (capability A) is validated (D30) and now promoted into the
+Snakefile as real rules (D31)** — `retrieve_and_bait`(SRA: prefetch+fastq-dump+int=f)
+→ `annotate_and_gate`(ITSx) → `dereplicate`(vsearch) → `classify`(blastn vs UNITE) →
+`build_feature_table`(per-genus `fungal_taxa_table.tsv`). The stubs are gone; full
+suite green (89) incl. the dry-run DAG test + an end-to-end fixture run.
+Next: scale to all 10 GBI datasets (add the per-dataset recovery-control safeguard
+first — see handoff open items from the D31 review).
 
 **Capability A pilot (D30, 2026-06-21):** `results/gbi_its_discovery_pilot/`. A
 controlled 2-dataset run (one D28 *Alternaria*-positive host, one negative) found

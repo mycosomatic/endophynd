@@ -455,3 +455,32 @@ nuclear), data type (SRA reads vs Logan), and method (discovery vs targeted) —
 3. **Wire into the Snakefile** — promote the validated chain into `annotate_and_gate`
    (ITSx for SRA reads) + `classify` (blastn-vs-UNITE, replacing the stub) + a reusable
    script; add a tiny test. classify is still a stub.
+
+---
+
+## Session 2026-06-21 (later): pre-scale review + discovery wired into the Snakefile (D31)
+
+Ran a deep 3-audit code review, then did review item #3: **the validated D30 method is
+now real Snakefile rules** (stubs gone). Verified: 89 tests pass (incl. dry-run DAG
+test + 6 new `test_classify_its.py`) and a real `--use-conda` end-to-end run on the
+local `FIXTURE_ITS` sample completed 6/6 rules. New: `scripts/classify_its_blast.py`,
+`scripts/aggregate_taxa.py`, `scripts/build_unite_db.sh`. Detail: **D31**.
+
+**Open review items NOT yet done (do these before/while scaling):**
+1. **Recovery-control safeguard (do FIRST, gates trust in scaling):** an "Alternaria
+   absent" call must be gated on the dataset actually yielding fungal ITS (total
+   confident-fungal > threshold). Otherwise a pipeline failure reads as "absent."
+   *Streptanthus*'s 619 other fungi played this role implicitly in the pilot — make it
+   explicit (e.g. emit a `recovery_ok` flag per accession in the taxa table/provenance).
+2. **Capability B `absent`-vs-`error` (false-negative trap):** `target/align.py:291-298`
+   reports `absent` on any non-zero pipe exit, so a transient S3/network failure is
+   mislabeled "accession not present." Distinguish network failure from true absence
+   before trusting large `target` scans.
+3. **`target --source sra`** still unvalidated and not long-read-aware (`align.py:74-86`).
+4. **Contamination/background model** for the shared cross-host genera (D30 limit).
+5. Minor: hard-coded email in `fetch_fungal_markers.py`; unused `*.sig` in results.
+
+**To scale discovery to all 10 GBI:** the validated pilot scripts are in
+`results/gbi_its_discovery_pilot/scripts/` (loop `run_gbi2.sh` over `plants10.tsv`),
+OR run the Snakefile per accession (`source=sra`) now that the rules are real. UNITE
+BLAST DB already built at `~/endophynd_cache/db/unite/`.

@@ -103,18 +103,19 @@ if _SEED_IS_PLACEHOLDER:
 
 
 # ---------------------------------------------------------------------------
-# BLAST reference guard
-# rdna_ref.fa is required for BLAST-based locus assignment.
-# Warn at DAG-build time so the user sees it before any rule executes.
+# UNITE classifier guard
+# The classify rule blasts ITS features against the UNITE BLAST DB (D30).
+# Warn at DAG-build time so the user sees it before any rule executes (a missing
+# DB does not block a --dry-run; it only fails the classify rule at run time).
 # ---------------------------------------------------------------------------
 
-_RDNA_REF = Path("resources/rdna_ref.fa")
-if not _RDNA_REF.exists():
+_UNITE_DB = DB / config["classify"]["ITS"]["db"]
+if not (_UNITE_DB.with_suffix(".nin").exists() or _UNITE_DB.with_suffix(".ndb").exists()):
     sys.stderr.write(
-        "\n[WARNING] resources/rdna_ref.fa not found.\n"
-        "  BLAST locus assignment (annotate_and_gate) will fail.\n"
-        "  Build it first:\n"
-        "    python scripts/build_rdna_ref.py --email your@email.com\n\n"
+        f"\n[WARNING] UNITE BLAST DB not found at {_UNITE_DB}.*\n"
+        "  The classify rule will fail. Build it once from the UNITE general FASTA:\n"
+        "    scripts/build_unite_db.sh <unite_general_release.fasta>\n"
+        "  (UNITE v10.0 Fungi: https://doi.org/10.15156/BIO/3301229)\n\n"
     )
 
 
@@ -124,7 +125,7 @@ if not _RDNA_REF.exists():
 
 rule all:
     input:
-        expand(str(RESULTS / "{sample}" / "feature_table.stub.qza"), sample=SAMPLE_IDS),
+        expand(str(RESULTS / "{sample}" / "fungal_taxa_table.tsv"), sample=SAMPLE_IDS),
         str(RESULTS / "provenance.json"),
 
 
@@ -323,47 +324,49 @@ rule retrieve_and_bait:
             # PacBio CLR / ONT: single-end, error-prone (Q10-20). No split-spot.
             #   minlength=500; minavgquality=15. Classification capped at genus in
             #   provenance — do not report species-level calls from these platforms.
+            # Retrieval is always: prefetch the .sra, then stream it LOCALLY with
+            # fastq-dump (legacy) piped to bbduk.
+            #   WHY NOT `fasterq-dump --stdout`: it hangs from remote (sra-tools
+            #   2.11.3) and its local mode needs ~3x-the-.sra scratch (D30). fastq-dump
+            #   streams spot-by-spot with negligible scratch.
+            #   WHY int=f / threads=4: bbduk's multithreaded stdin FASTQ reader
+            #   misaligns records ("missing plus" crash) at higher threads / int=t;
+            #   the single-stream parser is robust (D30). We bait reads individually.
             if [ "$PLATFORM" = "illumina" ]; then
-                SPOT_FLAG="--split-spot"
-                PAIR_ARG="int=t"
                 BAIT_MINLEN={params.minlength}
                 QUAL_ARG=""
             elif [ "$PLATFORM" = "pacbio-hifi" ]; then
-                SPOT_FLAG=""
-                PAIR_ARG=""
                 BAIT_MINLEN=500
                 QUAL_ARG="minavgquality=30"
             elif [ "$PLATFORM" = "pacbio-clr" ] || [ "$PLATFORM" = "ont" ]; then
-                SPOT_FLAG=""
-                PAIR_ARG=""
                 BAIT_MINLEN=500
                 QUAL_ARG="minavgquality=15"
             else
                 echo "[bait][WARN] {wildcards.sample}: unknown platform '$PLATFORM'" \
                      "— defaulting to illumina settings" >> {log}
-                SPOT_FLAG="--split-spot"
-                PAIR_ARG="int=t"
                 BAIT_MINLEN={params.minlength}
                 QUAL_ARG=""
             fi
 
+            SRATMP={HOT}/sra_tmp/{wildcards.sample}
+            mkdir -p $SRATMP
             {{
-                echo "  fasterq-dump : $(fasterq-dump --version 2>&1 | head -1 || echo unknown)"
-                echo "  pair_arg     : ${{PAIR_ARG:-none}}"
-                echo "  qual_arg     : ${{QUAL_ARG:-none}}"
-                echo "  bait_minlen  : $BAIT_MINLEN"
+                echo "  prefetch    : $(prefetch --version 2>&1 | head -1 || echo unknown)"
+                echo "  fastq-dump  : $(fastq-dump --version 2>&1 | head -1 || echo unknown)"
+                echo "  bait_minlen : $BAIT_MINLEN"
+                echo "  bait_mode   : int=f threads=4 (stdin-safe)"
                 echo ""
             }} >> {log}
 
+            # 1) prefetch the .sra locally (deterministic; default size cap is 20G).
+            prefetch "$ACC" --max-size 100g -O $SRATMP >> {log} 2>&1
+
+            # 2) stream the local .sra through bbduk; bait single-end (int=f).
             {{
-                fasterq-dump "$ACC" \
-                    --stdout \
-                    $SPOT_FLAG \
-                    --skip-technical \
-                    --threads {threads} \
+                fastq-dump --split-spot --skip-technical -Z "$SRATMP/$ACC/$ACC.sra" \
                 | bbduk.sh \
                     in=stdin.fq \
-                    $PAIR_ARG \
+                    int=f \
                     ref={params.seed_ref} \
                     outm={output.baited} \
                     stats={output.bait_stats} \
@@ -371,8 +374,11 @@ rule retrieve_and_bait:
                     hdist={params.hdist} \
                     minlength=$BAIT_MINLEN \
                     $QUAL_ARG \
-                    threads={threads}
+                    threads=4
             }} 2>> {log}
+
+            # 3) delete the .sra (process-then-delete; never keep raw data).
+            rm -rf $SRATMP
 
         else
             echo "[ERROR] source='$SOURCE' not supported." \
@@ -419,33 +425,42 @@ rule annotate_and_gate:
         mkdir -p $(dirname {log})
 
         NBAITED=$(grep -c '^>' {input.baited} 2>/dev/null || echo 0)
-        echo "[gate] {wildcards.sample}: BLAST locus assignment on $NBAITED sequences" > {log}
+        echo "[gate] {wildcards.sample}: ITSx ITS extraction on $NBAITED baited reads" > {log}
 
-        # Primary: BLAST-based locus assignment.
-        # Works for short Logan unitigs (~200 bp) that lack the conserved SSU/LSU
-        # flanks ITSx's HMMs need.  Reference: resources/rdna_ref.fa (per-locus).
-        python scripts/assign_locus_blast.py \
-            --baited {input.baited} \
-            --rdna-ref resources/rdna_ref.fa \
-            --params workflow/config/params.yml \
-            --gate-report {output.gate_report} \
-            --gated-out {output.gated} \
-            2>> {log}
+        PREFIX={HOT}/gated/{wildcards.sample}.itsx
+        DEREP={HOT}/gated/{wildcards.sample}.prederep.fa
 
+        # Pre-derep identical baited reads (high-copy rDNA reads are very redundant)
+        # so ITSx does less work, then extract ITS1/ITS2.  ITSx anchors on the
+        # conserved SSU/5.8S/LSU flanks and emits ONLY the variable spacers — removing
+        # the conserved 5.8S is what lets blastn-vs-UNITE (classify) separate fungal
+        # ITS from host-plant ITS (D30).  -t F,T scans Fungi + plants; --partial 50
+        # keeps partial ITS from short WGS reads that cross a single anchor.
+        vsearch --derep_fulllength {input.baited} --sizeout --minseqlength 80 \
+            --output $DEREP --threads {threads} 2>> {log} || cp {input.baited} $DEREP
+
+        ITSx -i $DEREP -o $PREFIX \
+            -t F,T --save_regions all --partial 50 --minlen 50 \
+            --heuristics T --preserve T --multi_thread T --cpu {threads} \
+            >> {log} 2>&1 || echo "[gate][WARN] {wildcards.sample}: ITSx returned non-zero" >> {log}
+
+        # Combine ITS1 + ITS2 -> the gated ITS feature set for classification.
+        # Redirect always creates the output even if ITSx found nothing (|| true keeps
+        # bash strict-mode happy when the region files are absent).
+        cat ${{PREFIX}}.ITS1.fasta ${{PREFIX}}.ITS2.fasta 2>/dev/null > {output.gated} || true
+        [ -f {output.gated} ] || : > {output.gated}
+
+        {{
+            printf "region\tn_seqs\n"
+            for R in ITS1 ITS2 5_8S SSU LSU; do
+                N=$(grep -c '^>' ${{PREFIX}}.$R.fasta 2>/dev/null || true); N=${{N:-0}}
+                printf "%s\t%s\n" "$R" "$N"
+            done
+        }} > {output.gate_report}
+
+        rm -f $DEREP ${{PREFIX}}.* 2>/dev/null || true
         NPASSED=$(grep -c '^>' {output.gated} 2>/dev/null || echo 0)
-        echo "[gate] {wildcards.sample}: $NPASSED sequences passed gate" >> {log}
-
-        # ITSx (future): run for amplicon-length reads that DO span SSU/LSU flanks.
-        # ITSx gives finer ITS1-vs-ITS2 discrimination and per-region FASTAs for
-        # Phase 2 classification.  Uncomment when processing SRA amplicon libraries.
-        # ITSX_PREFIX={HOT}/gated/{wildcards.sample}.itsx
-        # ITSx -i {input.baited} -o $ITSX_PREFIX --cpu {threads} \\
-        #      --multi_thread T --organisms F --save_regions all \\
-        #      --partial 50 --minlen 50 --heuristics T 2>> {log}
-        # python scripts/parse_itsx.py \\
-        #     --baited {input.baited} --itsx-prefix $ITSX_PREFIX \\
-        #     --params workflow/config/params.yml \\
-        #     --gate-report {output.gate_report} --gated-out {output.gated} 2>> {log}
+        echo "[gate] {wildcards.sample}: $NPASSED ITS regions (ITS1+ITS2) extracted" >> {log}
         """
 
 
@@ -468,11 +483,30 @@ rule dereplicate:
     shell:
         """
         mkdir -p $(dirname {output.features})
-        # Phase 0 stub: treat entire baited file as one feature.
-        cp {input.gated} {output.features}
-        printf "feature_id\t{wildcards.sample}\n" > {output.counts}
-        printf "feat_001\t1\n" >> {output.counts}
-        echo "[derep] {wildcards.sample}: stub" > {log}
+        mkdir -p $(dirname {log})
+
+        NIN=$(grep -c '^>' {input.gated} 2>/dev/null || echo 0)
+        echo "[derep] {wildcards.sample}: dereplicating $NIN ITS regions" > {log}
+
+        if [ "$NIN" = "0" ]; then
+            # No ITS recovered: emit empty features + header-only counts so the DAG
+            # completes honestly (classify will report 0 fungal).
+            : > {output.features}
+            printf "feature_id\tsize\n" > {output.counts}
+            echo "[derep] {wildcards.sample}: 0 ITS regions — empty feature set" >> {log}
+        else
+            # Collapse identical ITS spacers across reads; clean labels (raw read
+            # headers contain spaces that break parsers) + abundance (= # reads
+            # supporting each unique ITS).
+            vsearch --derep_fulllength {input.gated} \
+                --relabel {wildcards.sample}_its --sizeout --minseqlength 50 \
+                --output {output.features} 2>> {log}
+            printf "feature_id\tsize\n" > {output.counts}
+            grep '^>' {output.features} \
+                | sed -E 's/^>([^;]+);size=([0-9]+).*/\\1\t\\2/' >> {output.counts}
+            NU=$(grep -c '^>' {output.features} 2>/dev/null || echo 0)
+            echo "[derep] {wildcards.sample}: $NU unique ITS features" >> {log}
+        fi
         """
 
 
@@ -487,45 +521,68 @@ rule classify:
         features=HOT / "features" / "{sample}.features.fa",
     output:
         taxonomy=RESULTS / "{sample}" / "taxonomy.tsv",
+    params:
+        db=str(DB / config["classify"]["ITS"]["db"]),
+        min_identity=config["classify"]["ITS"].get("min_identity", 90),
+        min_qcov=config["classify"]["ITS"].get("min_qcov", 60),
+    threads: config.get("classify_threads", 4)
     log:
         COLD / "logs" / "classify" / "{sample}.log",
     conda:
-        "../envs/classify.yml"
+        "../envs/annotate.yml"
     shell:
         """
         mkdir -p $(dirname {output.taxonomy})
-        printf "Feature ID\tTaxon\tConfidence\tlocus\tinformative_bp\trecovery_path\n" \
-            > {output.taxonomy}
-        printf "feat_001\tk__Fungi;unclassified\t0.0\tITS1\t0\tread_stub\n" \
-            >> {output.taxonomy}
-        echo "[classify] {wildcards.sample}: stub" > {log}
+        mkdir -p $(dirname {log})
+        NF=$(grep -c '^>' {input.features} 2>/dev/null || echo 0)
+        echo "[classify] {wildcards.sample}: blastn-vs-UNITE on $NF ITS features" > {log}
+        echo "  db        : {params.db}" >> {log}
+        echo "  thresholds: >={params.min_identity}% id, >={params.min_qcov}% qcov" >> {log}
+
+        if [ "$NF" = "0" ]; then
+            printf "feature_id\tsize\tfungal\ttaxon\tpct_identity\taln_len\tunite_subject\n" \
+                > {output.taxonomy}
+            echo "[classify] {wildcards.sample}: 0 features — empty taxonomy" >> {log}
+        else
+            # Validated discriminator (D30): a feature is fungal iff it blasts to
+            # UNITE at >=id / >=qcov over the ITSx-extracted ITS (5.8S already removed).
+            python scripts/classify_its_blast.py \
+                --features {input.features} \
+                --db {params.db} \
+                --out {output.taxonomy} \
+                --min-identity {params.min_identity} \
+                --min-qcov {params.min_qcov} \
+                --threads {threads} 2>> {log}
+        fi
         """
 
 
 # ---------------------------------------------------------------------------
 # Rule: build_feature_table
-# Assemble QIIME2 .qza FeatureTable[Frequency] from counts + taxonomy.
-# (Phase 0: stub .qza — a zip with a placeholder artifact)
+# Aggregate per-feature ITS taxonomy into a per-accession fungal taxa table
+# (genus-level, abundance-weighted). A QIIME2 FeatureTable[.qza] export can be
+# layered on later; the TSV is the immediate "what fungi are here" deliverable.
 # ---------------------------------------------------------------------------
 
 rule build_feature_table:
     input:
-        counts=HOT / "features" / "{sample}.counts.tsv",
         taxonomy=RESULTS / "{sample}" / "taxonomy.tsv",
     output:
-        qza=RESULTS / "{sample}" / "feature_table.stub.qza",
+        table=RESULTS / "{sample}" / "fungal_taxa_table.tsv",
     log:
         COLD / "logs" / "table" / "{sample}.log",
     conda:
-        "../envs/classify.yml"
+        "../envs/annotate.yml"
     shell:
         """
-        mkdir -p $(dirname {output.qza})
-        # Phase 0: write a placeholder zip so Snakemake considers the rule satisfied.
-        # Phase 1 will replace this with real BIOM construction + qiime tools import.
-        echo "STUB_QZA sample={wildcards.sample}" | zip - > {output.qza} 2>/dev/null || \
-            printf "STUB_QZA sample={wildcards.sample}" > {output.qza}
-        echo "[table] {wildcards.sample}: stub .qza written" > {log}
+        mkdir -p $(dirname {output.table})
+        mkdir -p $(dirname {log})
+        # Per-accession answer to "what fungi are here": confident fungal ITS features
+        # grouped by genus, weighted by read support.
+        python scripts/aggregate_taxa.py \
+            --taxonomy {input.taxonomy} \
+            --out {output.table} 2>> {log}
+        echo "[table] {wildcards.sample}: fungal taxa table written" > {log}
         """
 
 
@@ -538,12 +595,13 @@ rule build_feature_table:
 if config.get("delete_transient_after_classify", True):
     rule cleanup_transient:
         input:
-            qza=RESULTS / "{sample}" / "feature_table.stub.qza",
+            table=RESULTS / "{sample}" / "fungal_taxa_table.tsv",
         output:
             touch(HOT / "cleaned" / "{sample}.cleaned"),
         shell:
             """
             mkdir -p $(dirname {output[0]})
+            rm -rf {HOT}/sra_tmp/{wildcards.sample}
             rm -f {HOT}/baited/{wildcards.sample}.baited.fa \
                   {HOT}/baited/{wildcards.sample}.bait_stats.txt \
                   {HOT}/gated/{wildcards.sample}.gated.fa \
@@ -560,8 +618,8 @@ if config.get("delete_transient_after_classify", True):
 
 rule provenance:
     input:
-        qzas=expand(
-            str(RESULTS / "{sample}" / "feature_table.stub.qza"),
+        tables=expand(
+            str(RESULTS / "{sample}" / "fungal_taxa_table.tsv"),
             sample=SAMPLE_IDS,
         ),
         bait_logs=expand(
@@ -648,11 +706,13 @@ rule provenance:
             },
             "samples": SAMPLE_IDS,
             "bait_stats": bait_stats,
-            "phase": "1-read-level-discovery",
+            "phase": "discovery-A-validated (D30)",
             "note": (
-                "Phase 1: real Logan streaming + bbduk baiting. "
-                "Annotation, dereplication, and classification are still stubs "
-                "(Phase 2). Taxonomy results are placeholders only."
+                "Discovery pipeline (D30): retrieve (prefetch+fastq-dump, SRA) / "
+                "stream Logan -> bbduk bait -> vsearch derep -> ITSx ITS1/ITS2 -> "
+                "vsearch derep -> blastn-vs-UNITE classify (>=90% id / >=60% qcov is "
+                "the fungal discriminator) -> per-genus fungal taxa table. Requires the "
+                "UNITE blastn DB at <db_dir>/unite/ (build with scripts/build_unite_db.sh)."
             ),
             "params": config,
         }

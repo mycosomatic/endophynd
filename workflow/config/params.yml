@@ -66,17 +66,26 @@ derep:
   identity: 0.97                        # 97% clustering fallback if exact derep too fragmented
 
 # --- Classification ---
+# DB paths are relative to db_dir (see cache.yml).
 classify:
-  # Databases are paths relative to db_dir (see cache.yml)
+  # ITS: VALIDATED discovery classifier (D30). blastn vs the UNITE BLAST DB built by
+  # scripts/build_unite_db.sh. The fungal/non-fungal call is made by BLAST identity
+  # over the ITSx-extracted ITS — NOT q2-feature-classifier/sintax, which labels every
+  # query Fungi against a Fungi-only reference and so cannot reject host-plant ITS.
   ITS:
-    method: q2-feature-classifier
-    db: "unite/unite_dynamic_s_all_10.05.2021.qza"  # placeholder path; update when DB is fetched
+    method: blastn
+    db: "unite/unite_blast"           # built by scripts/build_unite_db.sh (UNITE v10.0)
+    min_identity: 90                  # percent-identity floor for a confident fungal call
+    min_qcov: 60                      # percent query-coverage floor
+  # SSU/LSU (SILVA) classification is not yet implemented — placeholders only.
   SSU:
     method: phyloFlash
-    db: "silva/138.1/SSU"              # placeholder
+    db: "silva/138.1/SSU"             # placeholder
   LSU:
     method: q2-feature-classifier
-    db: "silva/138.1/LSU"              # placeholder
+    db: "silva/138.1/LSU"             # placeholder
+
+classify_threads: 4                   # threads for blastn in the classify rule
 
 # --- Output ---
 output:
